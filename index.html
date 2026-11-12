@@ -156,8 +156,7 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
       </section>
       <section class="panel">
         <h3>IVR fair-use minutes</h3>
-        <div class="small" style="margin-top:2px">Not EUs. Counts voice self-service time until the call reaches a VA or AVA. Billed per minute in currency once the pool runs out.</div>
-        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="ivrBot"> Count bot time toward IVR minutes</label>
+        <div class="small" style="margin-top:2px">Not EUs. Counts all voice self-service time: IVR, bot, VA and AVA. Billed per minute in currency once the pool runs out.</div>
         <div class="bar" id="ivrBar"></div>
         <dl class="kv" id="ivrKv"></dl>
       </section>
@@ -200,7 +199,7 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
 const MODEL = {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.2.2-draft",
+  "modelVersion": "0.3.0-draft",
   "asOf": "2026-11-12",
   "status": "draft - first pass for review",
   "sources": {
@@ -680,13 +679,12 @@ const MODEL = {
     },
     {
       "id": "R6",
-      "rule": "IVR minutes are not EUs. IVR (and, by default, bot) flow time on a voice call draws down the org's pooled fair-use IVR minutes until the call is handed to a VA or AVA; VA/AVA time does not count. Minutes beyond the pool are billed per minute in currency, independent of the EU tier.",
+      "rule": "IVR minutes are not EUs. All self-service time on a voice call (IVR + bot + VA + AVA) accrues against the org's pooled fair-use IVR minutes; minutes beyond the pool are billed per minute in currency, independent of the EU tier.",
       "source": "fair-use",
       "confidence": "confirmed-by-chad"
     }
   ],
   "openQuestions": [
-    "Does bot flow time count toward IVR fair-use minutes? Chad confirmed VA/AVA time does not; the model counts bot time by default with a toggle.",
     "IVR overage rate ($0.01/min) came from a part of the fair-use page I could only read as a summary; please confirm.",
     "Digital bot 'session' vs 'interaction' definition (revised 2026-06-01) - does a digital session reset on re-entry?",
     "Exact prepaid EU discount and any volume tiers are unpublished."
@@ -695,7 +693,7 @@ const MODEL = {
     "description": "Non-EU allowances that interact with self-service design. Pooled across the org each month (per billable user x per-user allowance), based on the greater of commit or actual users. No carry-over. Overage billed in currency, not EUs.",
     "ivrMinutes": {
       "name": "Basic routing / IVR minutes",
-      "measuredAs": "Self-service flow time on a voice call until it is handed to a VA or AVA: Architect IVR flow time, plus bot flow time by default (toggle). Time in VA/AVA is not counted (confirmed by Chad 2026-11-12). In-queue flows are excluded.",
+      "measuredAs": "IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions (confirmed by Chad 2026-11-12). In-queue flows are excluded.",
       "perUserPerMonth": {
         "named": {
           "CX1": 1750,
@@ -724,11 +722,11 @@ const MODEL = {
       },
       "invoiceCode": "PC-170-NV-PCIVRPERMIN",
       "source": "fair-use",
-      "confidence": "allowances published; overage rate and measurement rule read from a part of the page that only came through as a summary - verify",
-      "includesBotTimeDefault": true
+      "confidence": "allowances published; overage rate and measurement rule read from a part of the page that only came through as a summary - verify"
     }
   }
-};
+}
+;
 const SAMPLE = {
   "name": "Sample: 200-agent named CX 3 contact center",
   "licenseModel": "named",
@@ -777,7 +775,8 @@ const SAMPLE = {
             "va"
           ],
           "botMinutes": 1.5,
-          "ivrMinutes": 0.75
+          "ivrMinutes": 0.75,
+          "agentMinutes": 3
         },
         {
           "name": "IVR -> bot -> VA -> AVA",
@@ -788,7 +787,8 @@ const SAMPLE = {
             "va",
             "ava"
           ],
-          "ivrMinutes": 0.75
+          "ivrMinutes": 0.75,
+          "agentMinutes": 4
         }
       ]
     },
@@ -822,7 +822,8 @@ const SAMPLE = {
       ]
     }
   }
-};
+}
+;
 </script>
 <script>
 /*
@@ -971,17 +972,16 @@ const SAMPLE = {
   /**
    * IVR minutes are not EUs (rule R6). They draw down a pooled fair-use allowance
    * (per billable user x license), and minutes past it are billed per minute in currency.
-   * Per voice path: ivrMinutes + botMinutes (bot time toggled by scenario.ivrCountsBotMinutes). VA/AVA time never counts.
+   * All self-service time on a voice call counts: per path ivrMinutes + botMinutes + agentMinutes (VA/AVA time).
    */
   function ivrFairUse(model, scenario, currency) {
     const fu = model.fairUse && model.fairUse.ivrMinutes;
     const v = scenario.selfService && scenario.selfService.voice;
     if (!fu) return null;
-    const countBot = scenario.ivrCountsBotMinutes != null ? !!scenario.ivrCountsBotMinutes : fu.includesBotTimeDefault !== false;
     let minutes = 0;
     if (v && v.interactions) {
       const totalShare = (v.paths || []).reduce((s, p) => s + (p.share || 0), 0) || 1;
-      (v.paths || []).forEach((p) => { minutes += v.interactions * (p.share || 0) / totalShare * ((p.ivrMinutes || 0) + (countBot ? (p.botMinutes || 0) : 0)); });
+      (v.paths || []).forEach((p) => { minutes += v.interactions * (p.share || 0) / totalShare * ((p.ivrMinutes || 0) + (p.botMinutes || 0) + (p.agentMinutes || 0)); });
     }
     minutes += scenario.extraIvrMinutes || 0;
     const perUser = ((fu.perUserPerMonth[scenario.licenseModel] || {})[scenario.license]) || 0;
@@ -989,7 +989,7 @@ const SAMPLE = {
     const allowance = perUser * users;
     const overageMinutes = Math.max(0, minutes - allowance);
     const rate = scenario.ivrOverageRate != null ? scenario.ivrOverageRate : (fu.overagePerMinute[currency] || 0);
-    return { minutes: round(minutes, 0), countsBotMinutes: countBot, perUser, users, allowance, overageMinutes: round(overageMinutes, 0),
+    return { minutes: round(minutes, 0), perUser, users, allowance, overageMinutes: round(overageMinutes, 0),
       usedPct: allowance ? round(minutes / allowance * 100, 1) : null, ratePerMinute: rate, overageCost: round(overageMinutes * rate, 2) };
   }
 
@@ -1023,13 +1023,12 @@ $('#ladder').innerHTML = TIERS.map(t => {
 
 function bindOrg(){
   $('#licenseModel').value = S.licenseModel; $('#license').value = S.license; $('#agents').value = S.agents;
-  $('#currency').value = S.currency || 'USD'; $('#price').value = S.pricePerEU ?? ''; $('#ivrRate').value = S.ivrOverageRate ?? ''; $('#ivrBot').checked = S.ivrCountsBotMinutes ?? (M.fairUse?.ivrMinutes.includesBotTimeDefault !== false); $('#summaryWaive').checked = !!S.summaryCoveredByCopilot;
+  $('#currency').value = S.currency || 'USD'; $('#price').value = S.pricePerEU ?? ''; $('#ivrRate').value = S.ivrOverageRate ?? ''; $('#summaryWaive').checked = !!S.summaryCoveredByCopilot;
 }
 ['licenseModel','license','currency'].forEach(id => $('#'+id).addEventListener('change', e => { S[id] = e.target.value; refresh(); }));
 $('#agents').addEventListener('input', e => { S.agents = +e.target.value || 0; refresh(); });
 $('#price').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.pricePerEU; else S.pricePerEU = +v; refresh(); });
 $('#ivrRate').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.ivrOverageRate; else S.ivrOverageRate = +v; refresh(); });
-$('#ivrBot').addEventListener('change', e => { S.ivrCountsBotMinutes = e.target.checked; refresh(false); });
 $('#summaryWaive').addEventListener('change', e => { S.summaryCoveredByCopilot = e.target.checked; refresh(); });
 
 function renderChannels(){
@@ -1040,13 +1039,14 @@ function renderChannels(){
     return `<div style="margin-top:14px">
       <div class="panel-head" style="margin-bottom:6px"><h2 style="font-size:15px">${ch === 'voice' ? 'Voice' : 'Digital'}</h2>
         <label class="f" style="flex-direction:row;align-items:center;gap:8px">Interactions / month <input type="number" min="0" data-ch="${ch}" data-k="interactions" value="${c.interactions}"></label></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num">IVR min / call</th>':''}<th class="num">${unitHdr}</th><th>Billed as</th><th class="num">EU / int.</th><th class="num">EU / month</th>${ch==='voice'?'<th class="num">IVR fair-use min / month</th>':''}<th></th></tr></thead>
+      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num">IVR min / call</th>':''}<th class="num">${unitHdr}</th>${ch==='voice'?'<th class="num">VA/AVA min / call</th>':''}<th>Billed as</th><th class="num">EU / int.</th><th class="num">EU / month</th>${ch==='voice'?'<th class="num">IVR fair-use min / month</th>':''}<th></th></tr></thead>
       <tbody>${c.paths.map((p,i) => `<tr data-ch="${ch}" data-i="${i}">
         <td class="pathname"><input aria-label="Path name" data-k="name" value="${(p.name||'').replace(/"/g,'&quot;')}"></td>
         <td class="num"><input type="number" min="0" max="100" data-k="share" value="${p.share}" style="width:70px"></td>
         <td><div class="tiers">${TIERS.map(t => `<button class="tierbtn ${t.id} ${p.tiers.includes(t.id)?'on':''}" data-tier="${t.id}" aria-pressed="${p.tiers.includes(t.id)}">${TIER_LABEL[t.id]}</button>`).join('')}</div></td>
         ${ch==='voice'?`<td class="num"><input type="number" min="0" step="0.25" data-k="ivrMinutes" aria-label="IVR minutes per call" value="${p.ivrMinutes ?? 0}" style="width:70px"></td>`:''}
         <td class="num"><input type="number" min="0" step="0.25" data-k="${ch==='voice'?'botMinutes':'botSessions'}" value="${(ch==='voice'?p.botMinutes:p.botSessions) ?? (ch==='voice'?0:1)}" style="width:70px"></td>
+        ${ch==='voice'?`<td class="num"><input type="number" min="0" step="0.25" data-k="agentMinutes" aria-label="VA or AVA minutes per call" value="${p.agentMinutes ?? 0}" style="width:70px"></td>`:''}
         <td class="billed"></td><td class="num per"></td><td class="num tot"></td>${ch==='voice'?'<td class="num fu"></td>':''}
         <td><button class="btn x" data-del aria-label="Remove path">✕</button></td></tr>`).join('')}</tbody></table></div>
       <div class="row-actions"><button class="btn" data-add="${ch}">Add path</button><span class="small share-check" data-ch="${ch}"></span></div>
@@ -1105,8 +1105,8 @@ function refresh(rebuild = true){
       tr.querySelector('.billed').innerHTML = (p.billedTier ? `<span class="chip ${p.billedTier}">${TIER_LABEL[p.billedTier]}</span>` : '<span class="chip none">none</span>')
         + (p.minimumApplied ? `<div class="small bad" style="max-width:150px">${ch === 'voice' ? 'Bot minutes are 0, so the 15-second minimum is charged. Enter bot minutes per call.' : 'Bot sessions are 0, so 1 session is charged.'}</div>` : '');
       const fu = tr.querySelector('.fu');
-      if (fu) { const sp = S.selfService[ch].paths[+tr.dataset.i]; const cb = R.ivr ? R.ivr.countsBotMinutes : true;
-        fu.textContent = fmt(p.interactions * ((sp.ivrMinutes || 0) + (cb ? (sp.botMinutes || 0) : 0))); }
+      if (fu) { const sp = S.selfService[ch].paths[+tr.dataset.i]; 
+        fu.textContent = fmt(p.interactions * ((sp.ivrMinutes || 0) + (sp.botMinutes || 0) + (sp.agentMinutes || 0))); }
       tr.querySelector('.per').textContent = p.euPerInteraction.toFixed(p.euPerInteraction && p.euPerInteraction < 1 ? 3 : 2);
       tr.querySelector('.tot').textContent = fmtEU(p.eu);
       tr.querySelectorAll('.tierbtn').forEach(b => b.classList.toggle('billed', b.dataset.tier === p.billedTier && b.classList.contains('on')));
@@ -1161,7 +1161,7 @@ function refresh(rebuild = true){
     <p>This ${S.licenseModel} ${S.license} org of ${fmt(S.agents)} agents uses about <b>${fmt(T.grossEU)} EU</b> a month. The free allocation covers ${fmt(Math.min(T.allocationEU,T.grossEU))} of them, leaving <b>${fmt(T.netEU)} EU</b> (≈ ${fmt(T.cost,2)} ${T.currency}) to pay for.</p>
     <p>Fixed per-user elements are ${fmt(T.fixedEU)} EU (${fmt(T.fixedEU/g*100)}%) and do not move with volume. The largest single line is ${top ? `${top.name} at ${fmt(top.eu)} EU` : 'none'}.</p>
     ${ssInt ? `<p>Self-service handles ${fmt(ssInt)} interactions for ${fmt(ssEU)} EU, an average of ${(ssEU/ssInt).toFixed(3)} EU each. ${avaShare > 0 ? `Paths that reach an AVA make up ${fmt(avaShare)}% of that cost, because any interaction that enters an AVA flow is billed 1.2 EU no matter what else it touched.` : ''}</p>` : ''}
-    ${I ? `<p>Voice self-service before any VA/AVA hand-off (IVR${I.countsBotMinutes ? ' and bot' : ''} time) uses about ${fmt(I.minutes)} fair-use minutes, ${I.usedPct == null ? 'with no fair-use pool for this license' : fmt(I.usedPct,1) + '% of the pooled ' + fmt(I.allowance) + '-minute fair-use allowance'}. ${I.overageMinutes ? `The ${fmt(I.overageMinutes)} minutes over the pool add ${fmt(I.overageCost,2)} ${T.currency}, billed outside EUs.` : 'Nothing is billed for IVR time at this volume.'}</p>` : ''}
+    ${I ? `<p>Voice self-service (IVR, bot, VA and AVA time) uses about ${fmt(I.minutes)} fair-use minutes, ${I.usedPct == null ? 'with no fair-use pool for this license' : fmt(I.usedPct,1) + '% of the pooled ' + fmt(I.allowance) + '-minute fair-use allowance'}. ${I.overageMinutes ? `The ${fmt(I.overageMinutes)} minutes over the pool add ${fmt(I.overageCost,2)} ${T.currency}, billed outside EUs.` : 'Nothing is billed for IVR time at this volume.'}</p>` : ''}
     ${T.unusedAllocationEU ? `<p>${fmt(T.unusedAllocationEU)} EU of allocation goes unused this month and does not carry over.</p>` : ''}`;
   $('#jsonBox').value = JSON.stringify(S, null, 2);
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.2.2-draft",
+  "modelVersion": "0.3.0-draft",
   "asOf": "2026-11-12",
   "status": "draft - first pass for review",
   "sources": {
@@ -481,13 +481,12 @@
     },
     {
       "id": "R6",
-      "rule": "IVR minutes are not EUs. IVR (and, by default, bot) flow time on a voice call draws down the org's pooled fair-use IVR minutes until the call is handed to a VA or AVA; VA/AVA time does not count. Minutes beyond the pool are billed per minute in currency, independent of the EU tier.",
+      "rule": "IVR minutes are not EUs. All self-service time on a voice call (IVR + bot + VA + AVA) accrues against the org's pooled fair-use IVR minutes; minutes beyond the pool are billed per minute in currency, independent of the EU tier.",
       "source": "fair-use",
       "confidence": "confirmed-by-chad"
     }
   ],
   "openQuestions": [
-    "Does bot flow time count toward IVR fair-use minutes? Chad confirmed VA/AVA time does not; the model counts bot time by default with a toggle.",
     "IVR overage rate ($0.01/min) came from a part of the fair-use page I could only read as a summary; please confirm.",
     "Digital bot 'session' vs 'interaction' definition (revised 2026-06-01) - does a digital session reset on re-entry?",
     "Exact prepaid EU discount and any volume tiers are unpublished."
@@ -496,7 +495,7 @@
     "description": "Non-EU allowances that interact with self-service design. Pooled across the org each month (per billable user x per-user allowance), based on the greater of commit or actual users. No carry-over. Overage billed in currency, not EUs.",
     "ivrMinutes": {
       "name": "Basic routing / IVR minutes",
-      "measuredAs": "Self-service flow time on a voice call until it is handed to a VA or AVA: Architect IVR flow time, plus bot flow time by default (toggle). Time in VA/AVA is not counted (confirmed by Chad 2026-11-12). In-queue flows are excluded.",
+      "measuredAs": "IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions (confirmed by Chad 2026-11-12). In-queue flows are excluded.",
       "perUserPerMonth": {
         "named": {
           "CX1": 1750,
@@ -525,8 +524,7 @@
       },
       "invoiceCode": "PC-170-NV-PCIVRPERMIN",
       "source": "fair-use",
-      "confidence": "allowances published; overage rate and measurement rule read from a part of the page that only came through as a summary - verify",
-      "includesBotTimeDefault": true
+      "confidence": "allowances published; overage rate and measurement rule read from a part of the page that only came through as a summary - verify"
     }
   }
 }

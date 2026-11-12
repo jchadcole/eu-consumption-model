@@ -1,4 +1,4 @@
-# Genesys Cloud Experience Unit (EU) Consumption Model — v0.2.2 draft
+# Genesys Cloud Experience Unit (EU) Consumption Model — v0.3.0 draft
 
 First-pass model for review. Rates are as of 2026-11-12 and come from the pages cited inline. "Tokens" were renamed "Experience Units" on 2026-11-06; the value did not change.
 
@@ -94,7 +94,7 @@ Because only the top tier counts, the cost of a path depends only on whether it 
 - **R3 (confirmed by Chad).** Channel meters (messaging, social) are separate from the self-service tier and add on top. A WhatsApp conversation handled by a VA costs 0.5 EU plus 1 EU per 400 messages.
 - **R4.** Fixed elements are billed per user per month regardless of usage.
 - **R5.** Allocations net against total monthly EUs; unused units expire.
-- **R6 (confirmed by Chad).** IVR minutes are not EUs. IVR (and by default bot) time on the call, up to any VA/AVA hand-off, draws down the org's pooled fair-use IVR minutes, and minutes past the pool are billed per minute in currency. This applies on top of whatever EU tier the interaction is billed at.
+- **R6 (confirmed by Chad).** IVR minutes are not EUs. All self-service time on the call (IVR + bot + VA + AVA) draws down the org's pooled fair-use IVR minutes, and minutes past the pool are billed per minute in currency. This applies on top of whatever EU tier the interaction is billed at.
 
 ## IVR fair-use minutes
 
@@ -109,9 +109,9 @@ Source: [Genesys Cloud fair use policy](https://help.genesys.cloud/articles/gene
 | CX 4 | 4,250 | 5,525 |
 
 - Pooled across the org: billable users × per-user allowance, based on the greater of commit or actual users. No carry-over.
-- IVR minutes stop counting once the call is handed to a VA or AVA (confirmed by Chad). IVR flow time counts, and bot flow time counts by default (a toggle, pending confirmation). In-queue flows are excluded; ASR, TTS, DTMF and transfers inside the flow count.
+- IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions (confirmed by Chad). In-queue flows are excluded. In-queue flows are excluded; ASR, TTS, DTMF and transfers inside the flow count.
 - Overage: USD 0.01 per minute (CAD 0.011, AUD 0.013, NZD 0.014, GBP 0.007, EUR 0.008, BRL 0.04, JPY 1.00, ZAR 0.14), invoice code PC-170-NV-PCIVRPERMIN. This rate and the measurement rule came from a part of the page I could only read as a summary, so they need a check.
-- In the engine, each voice path carries `ivrMinutes` and `botMinutes` per call; fair-use minutes are `ivrMinutes + botMinutes` (bot part controlled by `ivrCountsBotMinutes`, default true). `botMinutes` also drives the bot EU charge when bot is the top tier. The UI takes an override for the overage rate.
+- In the engine, each voice path carries `ivrMinutes`, `botMinutes` and `agentMinutes` (VA/AVA time) per call; fair-use minutes are their sum. `botMinutes` also drives the bot EU charge when bot is the top tier. The UI takes an override for the overage rate.
 
 ## Scenario input format (engine)
 
@@ -131,9 +131,8 @@ Worked sample (`examples/sample-scenario.json`): 22,782 EU gross, 250 EU free, 2
 
 ## Open questions for Chad
 
-Answered 2026-11-12: tiers are billed by rank (R1), messaging EUs add on top (R3), IVR is billed per minute after fair use (R6), and VA/AVA time does not count toward IVR fair use.
+Answered 2026-11-12: tiers are billed by rank (R1), messaging EUs add on top (R3), IVR is billed per minute after fair use (R6), and IVR fair-use minutes accrue through IVR, bot, VA and AVA time.
 
-1. Does bot flow time count toward IVR fair-use minutes? The model counts it by default, with a toggle.
-2. Please confirm the IVR overage rate of USD 0.01 per minute.
-3. Digital bot session definition after the 2026-06-01 revision: does re-entry start a new session?
-4. Prepaid EU discount and volume tiers are not published; the UI takes a negotiated price.
+1. Please confirm the IVR overage rate of USD 0.01 per minute.
+2. Digital bot session definition after the 2026-06-01 revision: does re-entry start a new session?
+3. Prepaid EU discount and volume tiers are not published; the UI takes a negotiated price.

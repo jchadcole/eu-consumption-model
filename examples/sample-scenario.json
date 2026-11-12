@@ -46,7 +46,8 @@
             "va"
           ],
           "botMinutes": 1.5,
-          "ivrMinutes": 0.75
+          "ivrMinutes": 0.75,
+          "agentMinutes": 3
         },
         {
           "name": "IVR -> bot -> VA -> AVA",
@@ -57,7 +58,8 @@
             "va",
             "ava"
           ],
-          "ivrMinutes": 0.75
+          "ivrMinutes": 0.75,
+          "agentMinutes": 4
         }
       ]
     },

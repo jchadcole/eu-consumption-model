@@ -1,0 +1,532 @@
+{
+  "$schema": "./eu-model.schema.json",
+  "modelId": "genesys-cloud-eu",
+  "modelVersion": "0.2.2-draft",
+  "asOf": "2026-11-12",
+  "status": "draft - first pass for review",
+  "sources": {
+    "eu-model": {
+      "title": "Genesys Cloud Experience Units model (metering details)",
+      "url": "https://help.genesys.cloud/articles/genesys-cloud-experience-units-model/",
+      "revised": "2026-11-06"
+    },
+    "billing-scenarios": {
+      "title": "AI resource consumption billing scenarios",
+      "url": "https://help.genesys.cloud/409622",
+      "revised": "2026-08-17"
+    },
+    "pricing-hub": {
+      "title": "Genesys Cloud pricing hub (Experience Units section)",
+      "url": "https://help.genesys.cloud/411767",
+      "revised": "2026-11-06"
+    },
+    "free-allocation": {
+      "title": "Genesys Cloud free allocation per organization",
+      "url": "https://help.genesys.cloud/413418",
+      "revised": "2026-11-06"
+    },
+    "copilot-actions": {
+      "title": "Genesys Cloud Copilot AI actions overview",
+      "url": "https://help.genesys.cloud/416587",
+      "revised": "2026-08-24"
+    },
+    "dut-faq": {
+      "title": "Can I use digital user tracking at no additional cost?",
+      "url": "https://help.genesys.cloud/405280",
+      "revised": "2025-12-08"
+    },
+    "fair-use": {
+      "title": "Genesys Cloud fair use policy",
+      "url": "https://help.genesys.cloud/articles/genesys-cloud-fair-use-policy/",
+      "revised": "2026-08-31"
+    }
+  },
+  "pricing": {
+    "unit": "EU",
+    "pricePerEU": {
+      "USD": 1.0,
+      "CAD": 1.1,
+      "AUD": 1.3,
+      "NZD": 1.4,
+      "GBP": 0.7,
+      "EUR": 0.8,
+      "BRL": 4.0,
+      "JPY": 120,
+      "ZAR": 14.2
+    },
+    "notes": "Standard month-to-month consumption price. Prepaid units are available at an unpublished discount; enter a negotiated rate as an override.",
+    "carryOver": false,
+    "source": "pricing-hub"
+  },
+  "allocations": [
+    {
+      "id": "org-free-named",
+      "name": "Free org allocation (named-user org)",
+      "appliesTo": {
+        "licenseModel": "named"
+      },
+      "eu": 250,
+      "per": "org-month",
+      "source": "free-allocation"
+    },
+    {
+      "id": "org-free-concurrent",
+      "name": "Free org allocation (concurrent-user org)",
+      "appliesTo": {
+        "licenseModel": "concurrent"
+      },
+      "eu": 350,
+      "per": "org-month",
+      "source": "free-allocation"
+    },
+    {
+      "id": "cx4-named",
+      "name": "CX 4 included units (named)",
+      "appliesTo": {
+        "licenseModel": "named",
+        "license": "CX4"
+      },
+      "eu": 30,
+      "per": "agent-month",
+      "source": "pricing-hub"
+    },
+    {
+      "id": "cx4-concurrent",
+      "name": "CX 4 included units (concurrent)",
+      "appliesTo": {
+        "licenseModel": "concurrent",
+        "license": "CX4"
+      },
+      "eu": 39,
+      "per": "agent-month",
+      "source": "pricing-hub"
+    }
+  ],
+  "selfServiceTiers": {
+    "description": "Voice and digital self-service resources an interaction can traverse. Per interaction (billing ID), only the highest-ranked tier visited is billed; lower tiers on the same interaction are not billed separately.",
+    "rule": "highest-tier-per-interaction",
+    "source": "billing-scenarios",
+    "tiers": [
+      {
+        "id": "ivr",
+        "rank": 0,
+        "name": "IVR (Architect inbound call / message flow)",
+        "eu": 0,
+        "basis": "none",
+        "notes": "0 EU. IVR time is not an EU charge, but it is billed in currency per minute once the org's pooled fair-use IVR minutes are used up (see fairUse.ivrMinutes). That charge applies on top of whatever tier the interaction is billed at.",
+        "source": "fair-use",
+        "confidence": "confirmed-by-chad"
+      },
+      {
+        "id": "bot",
+        "rank": 1,
+        "name": "Bot flow (Genesys Dialog Engine / Digital Bot Flow)",
+        "voice": {
+          "eu": 1,
+          "per": 17,
+          "unit": "minute",
+          "rounding": {
+            "increment": "15s",
+            "scope": "per-call",
+            "mode": "up"
+          }
+        },
+        "digital": {
+          "eu": 1,
+          "per": 51,
+          "unit": "session"
+        },
+        "basis": "duration-or-session",
+        "source": "eu-model",
+        "confidence": "published"
+      },
+      {
+        "id": "va",
+        "rank": 2,
+        "name": "Virtual Agent (incl. agentic VA powered by Guides)",
+        "eu": 0.5,
+        "per": 1,
+        "unit": "interaction",
+        "basis": "interaction",
+        "source": "eu-model",
+        "confidence": "published"
+      },
+      {
+        "id": "ava",
+        "rank": 3,
+        "name": "Agentic Virtual Agent (powered by LAMs)",
+        "eu": 1.2,
+        "per": 1,
+        "unit": "interaction",
+        "basis": "interaction",
+        "triggers": "Charged as soon as the interaction enters a flow that contains an AVA block, even if the block never executes.",
+        "source": "billing-scenarios",
+        "confidence": "published"
+      }
+    ],
+    "interactionBoundary": {
+      "description": "One billing ID per interaction, any channel, any length. A billing ID can span several end-interaction events (e.g. inbound flow -> VA flow). Billing closes when an action ends it and no further transfer can occur.",
+      "endEvents": [
+        "Exit action (return to calling flow)",
+        "Disconnect action",
+        "Participant hangs up",
+        "Transfer to ACD action",
+        "Error-handling exit/disconnect",
+        "Recognition-failure exit/disconnect",
+        "Max No Input override exit/disconnect",
+        "Agent-escalation exit",
+        "Digital inactivity expiry (72h async timeout)"
+      ],
+      "source": "eu-model"
+    }
+  },
+  "elements": [
+    {
+      "id": "bots-voice",
+      "name": "Bots (Voice)",
+      "category": "usage",
+      "group": "self-service",
+      "tierRef": "bot",
+      "rate": {
+        "eu": 1,
+        "per": 17,
+        "unit": "minute"
+      },
+      "rounding": "each call up to next 15 seconds",
+      "source": "eu-model"
+    },
+    {
+      "id": "bots-digital",
+      "name": "Bots (Digital)",
+      "category": "usage",
+      "group": "self-service",
+      "tierRef": "bot",
+      "rate": {
+        "eu": 1,
+        "per": 51,
+        "unit": "session"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "virtual-agent",
+      "name": "Virtual Agent",
+      "category": "usage",
+      "group": "self-service",
+      "tierRef": "va",
+      "rate": {
+        "eu": 0.5,
+        "per": 1,
+        "unit": "interaction"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "agentic-virtual-agent",
+      "name": "Agentic Virtual Agent",
+      "category": "usage",
+      "group": "self-service",
+      "tierRef": "ava",
+      "rate": {
+        "eu": 1.2,
+        "per": 1,
+        "unit": "interaction"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "agent-copilot-named",
+      "name": "Agent Copilot (named)",
+      "category": "fixed",
+      "group": "agent-assist",
+      "rate": {
+        "eu": 40,
+        "per": 1,
+        "unit": "user-month"
+      },
+      "licenseModel": "named",
+      "source": "eu-model",
+      "notes": "Included automatically with CX 4. When enabled, Supervisor Copilot summaries/insights do not consume AI Summary EUs."
+    },
+    {
+      "id": "agent-copilot-concurrent",
+      "name": "Agent Copilot (concurrent)",
+      "category": "fixed",
+      "group": "agent-assist",
+      "rate": {
+        "eu": 60,
+        "per": 1,
+        "unit": "user-month"
+      },
+      "licenseModel": "concurrent",
+      "source": "eu-model"
+    },
+    {
+      "id": "sta-named",
+      "name": "Speech and Text Analytics add-on (named)",
+      "category": "fixed",
+      "group": "analytics",
+      "rate": {
+        "eu": 30,
+        "per": 1,
+        "unit": "user-month"
+      },
+      "licenseModel": "named",
+      "source": "eu-model"
+    },
+    {
+      "id": "sta-concurrent",
+      "name": "Speech and Text Analytics add-on (concurrent)",
+      "category": "fixed",
+      "group": "analytics",
+      "rate": {
+        "eu": 45,
+        "per": 1,
+        "unit": "user-month"
+      },
+      "licenseModel": "concurrent",
+      "source": "eu-model"
+    },
+    {
+      "id": "ai-scoring",
+      "name": "AI Scoring",
+      "category": "usage",
+      "group": "quality",
+      "rate": {
+        "eu": 1,
+        "per": 20,
+        "unit": "evaluation"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "ai-translate",
+      "name": "AI Translate",
+      "category": "usage",
+      "group": "agent-assist",
+      "rate": {
+        "eu": 1,
+        "per": 2,
+        "unit": "translation"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "ai-summary",
+      "name": "AI Summary and Insights",
+      "category": "usage",
+      "group": "agent-assist",
+      "rate": {
+        "eu": 1,
+        "per": 50,
+        "unit": "summary"
+      },
+      "source": "eu-model",
+      "waivedWhen": "agent-copilot enabled (Supervisor Copilot summaries ride on Agent Copilot)"
+    },
+    {
+      "id": "predictive-routing",
+      "name": "Predictive Routing",
+      "category": "usage",
+      "group": "routing",
+      "rate": {
+        "eu": 1,
+        "per": 17,
+        "unit": "routed interaction"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "gc-copilot",
+      "name": "Genesys Cloud Copilot (admin AI actions)",
+      "category": "usage",
+      "group": "admin",
+      "rate": {
+        "eu": 1,
+        "per": 20,
+        "unit": "AI action"
+      },
+      "source": "eu-model",
+      "notes": "Knowledge queries and utility actions are free. Multi-step tasks count each tool call (e.g. assign a role to 1 user = 3 actions).",
+      "detailSource": "copilot-actions"
+    },
+    {
+      "id": "msg-apple",
+      "name": "Apple Messages for Business",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "msg-facebook",
+      "name": "Facebook Messenger",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model",
+      "notes": "Legacy per-conversation pricing if org has not moved to EU pricing."
+    },
+    {
+      "id": "msg-instagram",
+      "name": "Instagram Direct Messaging",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "msg-whatsapp",
+      "name": "WhatsApp Messaging",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model",
+      "notes": "Meta per-message charges pass through separately."
+    },
+    {
+      "id": "msg-x",
+      "name": "X (Twitter) Direct Messaging",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model",
+      "notes": "X integration tier fees apply separately."
+    },
+    {
+      "id": "social-ingest",
+      "name": "Genesys Cloud Social (post ingestion)",
+      "category": "usage",
+      "group": "social",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "post ingested per channel"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "social-responses",
+      "name": "Social Post Responses",
+      "category": "usage",
+      "group": "social",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "outbound response per channel"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "predictive-engagement",
+      "name": "Predictive Engagement / digital user tracking",
+      "category": "usage",
+      "group": "engagement",
+      "rate": {
+        "eu": 0,
+        "per": 1,
+        "unit": "event"
+      },
+      "source": "dut-faq",
+      "notes": "No EU charge for EU customers."
+    }
+  ],
+  "billingRules": [
+    {
+      "id": "R1",
+      "rule": "Self-service resources on one interaction are billed at the single highest tier visited, by tier rank (bot < VA < AVA), not by computed cost. A long bot call that later reaches AVA is billed 1.2 EU only.",
+      "source": "billing-scenarios",
+      "confidence": "confirmed-by-chad"
+    },
+    {
+      "id": "R2",
+      "rule": "AVA charge (1.2 EU) is triggered by entering a flow that contains an AVA block, not by executing it.",
+      "source": "billing-scenarios"
+    },
+    {
+      "id": "R3",
+      "rule": "Channel meters (messaging, social) are independent of the self-service tier and add on top (e.g. a WhatsApp conversation handled by a VA = 0.5 EU + 1 EU per 400 messages).",
+      "source": "eu-model",
+      "confidence": "confirmed-by-chad"
+    },
+    {
+      "id": "R4",
+      "rule": "Fixed (per-user) elements are billed per user per month regardless of usage.",
+      "source": "eu-model"
+    },
+    {
+      "id": "R5",
+      "rule": "Free/included allocations net against total monthly EUs; unused units expire monthly.",
+      "source": "eu-model"
+    },
+    {
+      "id": "R6",
+      "rule": "IVR minutes are not EUs. IVR (and, by default, bot) flow time on a voice call draws down the org's pooled fair-use IVR minutes until the call is handed to a VA or AVA; VA/AVA time does not count. Minutes beyond the pool are billed per minute in currency, independent of the EU tier.",
+      "source": "fair-use",
+      "confidence": "confirmed-by-chad"
+    }
+  ],
+  "openQuestions": [
+    "Does bot flow time count toward IVR fair-use minutes? Chad confirmed VA/AVA time does not; the model counts bot time by default with a toggle.",
+    "IVR overage rate ($0.01/min) came from a part of the fair-use page I could only read as a summary; please confirm.",
+    "Digital bot 'session' vs 'interaction' definition (revised 2026-06-01) - does a digital session reset on re-entry?",
+    "Exact prepaid EU discount and any volume tiers are unpublished."
+  ],
+  "fairUse": {
+    "description": "Non-EU allowances that interact with self-service design. Pooled across the org each month (per billable user x per-user allowance), based on the greater of commit or actual users. No carry-over. Overage billed in currency, not EUs.",
+    "ivrMinutes": {
+      "name": "Basic routing / IVR minutes",
+      "measuredAs": "Self-service flow time on a voice call until it is handed to a VA or AVA: Architect IVR flow time, plus bot flow time by default (toggle). Time in VA/AVA is not counted (confirmed by Chad 2026-11-12). In-queue flows are excluded.",
+      "perUserPerMonth": {
+        "named": {
+          "CX1": 1750,
+          "CX2": 2500,
+          "CX3": 3250,
+          "CX4": 4250,
+          "Communicate": 500
+        },
+        "concurrent": {
+          "CX1": 2275,
+          "CX2": 3250,
+          "CX3": 4225,
+          "CX4": 5525
+        }
+      },
+      "overagePerMinute": {
+        "USD": 0.01,
+        "CAD": 0.011,
+        "AUD": 0.013,
+        "NZD": 0.014,
+        "GBP": 0.007,
+        "EUR": 0.008,
+        "BRL": 0.04,
+        "JPY": 1.0,
+        "ZAR": 0.14
+      },
+      "invoiceCode": "PC-170-NV-PCIVRPERMIN",
+      "source": "fair-use",
+      "confidence": "allowances published; overage rate and measurement rule read from a part of the page that only came through as a summary - verify",
+      "includesBotTimeDefault": true
+    }
+  }
+}

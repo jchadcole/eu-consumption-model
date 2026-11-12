@@ -1,0 +1,94 @@
+{
+  "name": "Sample: 200-agent named CX 3 contact center",
+  "licenseModel": "named",
+  "license": "CX3",
+  "agents": 200,
+  "currency": "USD",
+  "fixed": {
+    "agent-copilot-named": 120,
+    "sta-named": 40
+  },
+  "usage": {
+    "ai-scoring": 4000,
+    "ai-translate": 300,
+    "predictive-routing": 25000,
+    "msg-whatsapp": 60000,
+    "gc-copilot": 400
+  },
+  "selfService": {
+    "voice": {
+      "interactions": 40000,
+      "paths": [
+        {
+          "name": "IVR only (menu, then queue)",
+          "share": 40,
+          "tiers": [
+            "ivr"
+          ],
+          "ivrMinutes": 1.5
+        },
+        {
+          "name": "IVR -> voice bot (contained)",
+          "share": 30,
+          "tiers": [
+            "ivr",
+            "bot"
+          ],
+          "botMinutes": 2.5,
+          "ivrMinutes": 0.75
+        },
+        {
+          "name": "IVR -> bot -> VA",
+          "share": 20,
+          "tiers": [
+            "ivr",
+            "bot",
+            "va"
+          ],
+          "botMinutes": 1.5,
+          "ivrMinutes": 0.75
+        },
+        {
+          "name": "IVR -> bot -> VA -> AVA",
+          "share": 10,
+          "tiers": [
+            "ivr",
+            "bot",
+            "va",
+            "ava"
+          ],
+          "ivrMinutes": 0.75
+        }
+      ]
+    },
+    "digital": {
+      "interactions": 15000,
+      "paths": [
+        {
+          "name": "Digital bot only",
+          "share": 60,
+          "tiers": [
+            "bot"
+          ],
+          "botSessions": 1
+        },
+        {
+          "name": "Bot -> VA",
+          "share": 30,
+          "tiers": [
+            "bot",
+            "va"
+          ]
+        },
+        {
+          "name": "Bot -> AVA",
+          "share": 10,
+          "tiers": [
+            "bot",
+            "ava"
+          ]
+        }
+      ]
+    }
+  }
+}

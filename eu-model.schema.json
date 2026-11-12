@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "genesys-cloud-eu-model.schema.json",
+  "title": "Genesys Cloud Experience Unit consumption model",
+  "type": "object",
+  "required": ["modelId", "modelVersion", "asOf", "sources", "pricing", "allocations", "selfServiceTiers", "elements", "billingRules"],
+  "$defs": {
+    "sourceRef": { "type": "string", "description": "Key into the sources map" },
+    "rate": {
+      "type": "object", "required": ["eu", "per", "unit"],
+      "properties": { "eu": { "type": "number", "minimum": 0 }, "per": { "type": "number", "exclusiveMinimum": 0 }, "unit": { "type": "string" } },
+      "description": "eu EUs are consumed per `per` units of `unit`"
+    }
+  },
+  "properties": {
+    "modelId": { "type": "string" },
+    "modelVersion": { "type": "string" },
+    "asOf": { "type": "string", "format": "date" },
+    "sources": { "type": "object", "additionalProperties": { "type": "object", "required": ["title", "url"], "properties": { "title": { "type": "string" }, "url": { "type": "string", "format": "uri" }, "revised": { "type": "string" } } } },
+    "pricing": { "type": "object", "required": ["pricePerEU"], "properties": { "pricePerEU": { "type": "object", "additionalProperties": { "type": "number" } }, "carryOver": { "type": "boolean" }, "source": { "$ref": "#/$defs/sourceRef" } } },
+    "allocations": { "type": "array", "items": { "type": "object", "required": ["id", "eu", "per"], "properties": {
+      "id": { "type": "string" }, "name": { "type": "string" }, "eu": { "type": "number" }, "per": { "enum": ["org-month", "agent-month"] },
+      "appliesTo": { "type": "object", "properties": { "licenseModel": { "enum": ["named", "concurrent"] }, "license": { "type": "string" } } },
+      "source": { "$ref": "#/$defs/sourceRef" } } } },
+    "selfServiceTiers": { "type": "object", "required": ["rule", "tiers"], "properties": {
+      "rule": { "const": "highest-tier-per-interaction" },
+      "tiers": { "type": "array", "items": { "type": "object", "required": ["id", "rank"], "properties": {
+        "id": { "type": "string" }, "rank": { "type": "integer" }, "name": { "type": "string" },
+        "eu": { "type": "number" }, "per": { "type": "number" }, "unit": { "type": "string" },
+        "voice": { "$ref": "#/$defs/rate" }, "digital": { "$ref": "#/$defs/rate" },
+        "confidence": { "enum": ["published", "inferred"] }, "source": { "$ref": "#/$defs/sourceRef" } } } } } },
+    "elements": { "type": "array", "items": { "type": "object", "required": ["id", "name", "category", "rate", "source"], "properties": {
+      "id": { "type": "string" }, "name": { "type": "string" }, "category": { "enum": ["usage", "fixed"] }, "group": { "type": "string" },
+      "tierRef": { "type": "string", "description": "Self-service tier this element belongs to; billed via the highest-tier rule" },
+      "rate": { "$ref": "#/$defs/rate" }, "licenseModel": { "enum": ["named", "concurrent"] },
+      "rounding": { "type": "string" }, "notes": { "type": "string" }, "waivedWhen": { "type": "string" }, "source": { "$ref": "#/$defs/sourceRef" } } } },
+    "billingRules": { "type": "array", "items": { "type": "object", "required": ["id", "rule"], "properties": { "id": { "type": "string" }, "rule": { "type": "string" }, "confidence": { "enum": ["published", "inferred"] }, "source": { "$ref": "#/$defs/sourceRef" } } } },
+    "openQuestions": { "type": "array", "items": { "type": "string" } }
+  }
+}

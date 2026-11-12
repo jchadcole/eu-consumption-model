@@ -1,0 +1,1207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>EU Consumption Modeler</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: sticky totals rail on the right of a configuration column; stacks to one column on phones. Tiers warm up as they get pricier. */
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --ink:#18202b; --muted:#5b6676; --line:#dde1e7; --accent:#1f6f8b; --accent-ink:#ffffff;
+  --t-ivr:#8a94a3; --t-bot:#2f7fd1; --t-va:#d89a1c; --t-ava:#c2417a; --fixed:#5a4fcf; --good:#2e8b57; --warn:#b36b00;
+  --soft:#eef1f5;
+  --f-display:"Space Grotesk",system-ui,sans-serif; --f-body:"IBM Plex Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161d; --panel:#18202a; --ink:#e6eaf0; --muted:#9aa5b4; --line:#2a3542; --accent:#4fb3d4; --accent-ink:#0c1218;
+  --t-ivr:#7d8796; --t-bot:#5aa2ec; --t-va:#e8b043; --t-ava:#e06a9e; --fixed:#8f86f0; --good:#4fbf83; --warn:#e5a23a; --soft:#1f2934; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#11161d; --panel:#18202a; --ink:#e6eaf0; --muted:#9aa5b4; --line:#2a3542; --accent:#4fb3d4; --accent-ink:#0c1218;
+  --t-ivr:#7d8796; --t-bot:#5aa2ec; --t-va:#e8b043; --t-ava:#e06a9e; --fixed:#8f86f0; --good:#4fbf83; --warn:#e5a23a; --soft:#1f2934; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between;margin-bottom:16px}
+h1{font-family:var(--f-display);font-size:26px;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:17px;margin:0 0 4px}
+h3{font-size:13px;margin:0;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.sub{color:var(--muted);margin:2px 0 0;max-width:70ch}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
+nav.tabs button{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 12px;border-radius:6px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px;align-items:start}
+@media (max-width:960px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+section.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.hint{color:var(--muted);font-size:12.5px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0}
+input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right;font-family:var(--f-mono)}
+td input[type=number]{width:96px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;color:#fff;white-space:nowrap}
+.chip.ivr{background:var(--t-ivr)}.chip.bot{background:var(--t-bot)}.chip.va{background:var(--t-va)}.chip.ava{background:var(--t-ava)}.chip.none{background:var(--muted)}
+.cat{font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;border:1px solid currentColor}
+.cat.fixed{color:var(--fixed)}.cat.usage{color:var(--accent)}
+.tiers{display:flex;gap:4px;flex-wrap:wrap}
+.tierbtn{font:inherit;font-size:12px;font-weight:600;border:1.5px solid var(--line);background:transparent;color:var(--muted);border-radius:5px;padding:2px 8px;cursor:pointer}
+.tierbtn.on.ivr{border-color:var(--t-ivr);background:var(--t-ivr);color:#fff}
+.tierbtn.on.bot{border-color:var(--t-bot);background:var(--t-bot);color:#fff}
+.tierbtn.on.va{border-color:var(--t-va);background:var(--t-va);color:#fff}
+.tierbtn.on.ava{border-color:var(--t-ava);background:var(--t-ava);color:#fff}
+.tierbtn.on.billed{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink)}
+.btn{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--soft);color:var(--ink);padding:5px 10px;border-radius:6px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.x{padding:2px 8px;background:transparent}
+.ladder{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:4px 0 12px}
+.rung{border-radius:6px;padding:8px 10px;color:#fff;display:flex;flex-direction:column;gap:2px;min-width:0}
+.rung b{font-family:var(--f-display);font-size:15px}
+.rung span{font-size:12px;opacity:.92}
+.rung.ivr{background:var(--t-ivr)}.rung.bot{background:var(--t-bot)}.rung.va{background:var(--t-va)}.rung.ava{background:var(--t-ava)}
+@media (max-width:520px){.ladder{grid-template-columns:repeat(2,minmax(0,1fr))}}
+aside.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:16px;min-width:0}
+.big{font-family:var(--f-display);font-size:34px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kv{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-variant-numeric:tabular-nums}
+.kv dt{color:var(--muted)}.kv dd{margin:0;text-align:right;font-family:var(--f-mono)}
+.kv .sum{border-top:1px solid var(--line);padding-top:4px;font-weight:600;color:var(--ink)}
+.bar{display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--soft);margin:10px 0 8px}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-direction:column;gap:3px;font-size:12.5px}
+.legend div{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center}
+.legend s{width:10px;height:10px;border-radius:2px;display:block;text-decoration:none}
+.legend em{font-style:normal;font-family:var(--f-mono);color:var(--muted)}
+.prose p{margin:0 0 8px;max-width:68ch}
+.prose ul{margin:0;padding-left:18px}
+.warnbox{border-left:3px solid var(--warn);background:var(--soft);padding:8px 12px;border-radius:0 6px 6px 0;font-size:13px}
+.src{font-size:11.5px;color:var(--accent);text-decoration:none;white-space:nowrap}
+.src:hover{text-decoration:underline}
+textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pathname input{width:100%;min-width:140px}
+.small{font-size:12px;color:var(--muted)}
+.ok{color:var(--good)} .bad{color:var(--warn)}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s ease}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>EU Consumption Modeler</h1>
+      <p class="sub">Genesys Cloud Experience Units: set your volumes, seats and self-service paths, and see what a month consumes. Draft model <span id="ver"></span>, rates as of <span id="asof"></span>.</p>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="scenario" aria-selected="true">Scenario</button>
+      <button role="tab" data-tab="rates" aria-selected="false">Rate card</button>
+      <button role="tab" data-tab="rules" aria-selected="false">Billing rules</button>
+      <button role="tab" data-tab="json" aria-selected="false">Import / export</button>
+    </nav>
+  </header>
+
+  <div id="tab-scenario" class="grid">
+    <div class="col">
+      <section class="panel">
+        <div class="panel-head"><h2>Organization</h2><span class="hint">Sets free allocation and seat type</span></div>
+        <div class="fields">
+          <label class="f">License model<select id="licenseModel"><option value="named">Named</option><option value="concurrent">Concurrent</option></select></label>
+          <label class="f">License<select id="license"><option>CX1</option><option>CX2</option><option selected>CX3</option><option>CX4</option></select></label>
+          <label class="f">Agents<input id="agents" type="number" min="0" step="1"></label>
+          <label class="f">Currency<select id="currency"></select></label>
+          <label class="f">Price per EU (override)<input id="price" type="number" min="0" step="0.01" placeholder="list price"></label>
+          <label class="f">IVR overage per minute (override)<input id="ivrRate" type="number" min="0" step="0.001" placeholder="list rate"></label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Self-service paths</h2><span class="hint">Each interaction is billed only at the highest tier it touches</span></div>
+        <div class="ladder" id="ladder"></div>
+        <div id="channels"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Fixed elements</h2><span class="hint">EUs per user per month, regardless of use</span></div>
+        <div class="tbl-wrap"><table id="fixedTbl"><thead><tr><th>Element</th><th class="num">EU / user</th><th class="num">Users</th><th class="num">EU / month</th><th></th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Other usage elements</h2><span class="hint">Monthly volumes</span></div>
+        <div class="tbl-wrap"><table id="usageTbl"><thead><tr><th>Element</th><th>Rate</th><th class="num">Monthly volume</th><th class="num">EU / month</th><th></th></tr></thead><tbody></tbody></table></div>
+        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="summaryWaive"> Treat AI Summary as covered when Agent Copilot is enabled</label>
+      </section>
+    </div>
+
+    <aside class="rail">
+      <section class="panel">
+        <h3>Billable this month</h3>
+        <div class="big" id="netEU">0</div>
+        <div class="small" id="cost"></div>
+        <div class="bar" id="bar"></div>
+        <div class="legend" id="legend"></div>
+      </section>
+      <section class="panel">
+        <h3>Totals</h3>
+        <dl class="kv" id="kv"></dl>
+      </section>
+      <section class="panel">
+        <h3>IVR fair-use minutes</h3>
+        <div class="small" style="margin-top:2px">Not EUs. Counts voice self-service time until the call reaches a VA or AVA. Billed per minute in currency once the pool runs out.</div>
+        <label class="small" style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="ivrBot"> Count bot time toward IVR minutes</label>
+        <div class="bar" id="ivrBar"></div>
+        <dl class="kv" id="ivrKv"></dl>
+      </section>
+      <section class="panel prose">
+        <h3>In plain words</h3>
+        <div id="narrative"></div>
+      </section>
+    </aside>
+  </div>
+
+  <div id="tab-rates" hidden>
+    <section class="panel">
+      <div class="panel-head"><h2>Rate card</h2><span class="hint">Every element that consumes EUs, with its source page</span></div>
+      <div class="tbl-wrap"><table id="rateTbl"><thead><tr><th>Element</th><th>Type</th><th>Group</th><th>Rate</th><th class="num">EU per unit</th><th>Notes</th><th>Source</th></tr></thead><tbody></tbody></table></div>
+    </section>
+  </div>
+
+  <div id="tab-rules" hidden>
+    <div class="col">
+      <section class="panel prose" id="rulesPanel"></section>
+      <section class="panel prose" id="openQ"></section>
+    </div>
+  </div>
+
+  <div id="tab-json" hidden>
+    <section class="panel">
+      <div class="panel-head"><h2>Scenario JSON</h2><span class="hint">Same format the plugin engine accepts</span></div>
+      <textarea id="jsonBox" spellcheck="false"></textarea>
+      <div class="row-actions">
+        <button class="btn primary" id="copyJson">Copy scenario</button>
+        <button class="btn" id="loadJson">Load from box</button>
+        <button class="btn" id="resetJson">Reset to sample</button>
+        <span class="small" id="jsonMsg" role="status"></span>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const MODEL = {
+  "$schema": "./eu-model.schema.json",
+  "modelId": "genesys-cloud-eu",
+  "modelVersion": "0.2.2-draft",
+  "asOf": "2026-11-12",
+  "status": "draft - first pass for review",
+  "sources": {
+    "eu-model": {
+      "title": "Genesys Cloud Experience Units model (metering details)",
+      "url": "https://help.genesys.cloud/articles/genesys-cloud-experience-units-model/",
+      "revised": "2026-11-06"
+    },
+    "billing-scenarios": {
+      "title": "AI resource consumption billing scenarios",
+      "url": "https://help.genesys.cloud/409622",
+      "revised": "2026-08-17"
+    },
+    "pricing-hub": {
+      "title": "Genesys Cloud pricing hub (Experience Units section)",
+      "url": "https://help.genesys.cloud/411767",
+      "revised": "2026-11-06"
+    },
+    "free-allocation": {
+      "title": "Genesys Cloud free allocation per organization",
+      "url": "https://help.genesys.cloud/413418",
+      "revised": "2026-11-06"
+    },
+    "copilot-actions": {
+      "title": "Genesys Cloud Copilot AI actions overview",
+      "url": "https://help.genesys.cloud/416587",
+      "revised": "2026-08-24"
+    },
+    "dut-faq": {
+      "title": "Can I use digital user tracking at no additional cost?",
+      "url": "https://help.genesys.cloud/405280",
+      "revised": "2025-12-08"
+    },
+    "fair-use": {
+      "title": "Genesys Cloud fair use policy",
+      "url": "https://help.genesys.cloud/articles/genesys-cloud-fair-use-policy/",
+      "revised": "2026-08-31"
+    }
+  },
+  "pricing": {
+    "unit": "EU",
+    "pricePerEU": {
+      "USD": 1.0,
+      "CAD": 1.1,
+      "AUD": 1.3,
+      "NZD": 1.4,
+      "GBP": 0.7,
+      "EUR": 0.8,
+      "BRL": 4.0,
+      "JPY": 120,
+      "ZAR": 14.2
+    },
+    "notes": "Standard month-to-month consumption price. Prepaid units are available at an unpublished discount; enter a negotiated rate as an override.",
+    "carryOver": false,
+    "source": "pricing-hub"
+  },
+  "allocations": [
+    {
+      "id": "org-free-named",
+      "name": "Free org allocation (named-user org)",
+      "appliesTo": {
+        "licenseModel": "named"
+      },
+      "eu": 250,
+      "per": "org-month",
+      "source": "free-allocation"
+    },
+    {
+      "id": "org-free-concurrent",
+      "name": "Free org allocation (concurrent-user org)",
+      "appliesTo": {
+        "licenseModel": "concurrent"
+      },
+      "eu": 350,
+      "per": "org-month",
+      "source": "free-allocation"
+    },
+    {
+      "id": "cx4-named",
+      "name": "CX 4 included units (named)",
+      "appliesTo": {
+        "licenseModel": "named",
+        "license": "CX4"
+      },
+      "eu": 30,
+      "per": "agent-month",
+      "source": "pricing-hub"
+    },
+    {
+      "id": "cx4-concurrent",
+      "name": "CX 4 included units (concurrent)",
+      "appliesTo": {
+        "licenseModel": "concurrent",
+        "license": "CX4"
+      },
+      "eu": 39,
+      "per": "agent-month",
+      "source": "pricing-hub"
+    }
+  ],
+  "selfServiceTiers": {
+    "description": "Voice and digital self-service resources an interaction can traverse. Per interaction (billing ID), only the highest-ranked tier visited is billed; lower tiers on the same interaction are not billed separately.",
+    "rule": "highest-tier-per-interaction",
+    "source": "billing-scenarios",
+    "tiers": [
+      {
+        "id": "ivr",
+        "rank": 0,
+        "name": "IVR (Architect inbound call / message flow)",
+        "eu": 0,
+        "basis": "none",
+        "notes": "0 EU. IVR time is not an EU charge, but it is billed in currency per minute once the org's pooled fair-use IVR minutes are used up (see fairUse.ivrMinutes). That charge applies on top of whatever tier the interaction is billed at.",
+        "source": "fair-use",
+        "confidence": "confirmed-by-chad"
+      },
+      {
+        "id": "bot",
+        "rank": 1,
+        "name": "Bot flow (Genesys Dialog Engine / Digital Bot Flow)",
+        "voice": {
+          "eu": 1,
+          "per": 17,
+          "unit": "minute",
+          "rounding": {
+            "increment": "15s",
+            "scope": "per-call",
+            "mode": "up"
+          }
+        },
+        "digital": {
+          "eu": 1,
+          "per": 51,
+          "unit": "session"
+        },
+        "basis": "duration-or-session",
+        "source": "eu-model",
+        "confidence": "published"
+      },
+      {
+        "id": "va",
+        "rank": 2,
+        "name": "Virtual Agent (incl. agentic VA powered by Guides)",
+        "eu": 0.5,
+        "per": 1,
+        "unit": "interaction",
+        "basis": "interaction",
+        "source": "eu-model",
+        "confidence": "published"
+      },
+      {
+        "id": "ava",
+        "rank": 3,
+        "name": "Agentic Virtual Agent (powered by LAMs)",
+        "eu": 1.2,
+        "per": 1,
+        "unit": "interaction",
+        "basis": "interaction",
+        "triggers": "Charged as soon as the interaction enters a flow that contains an AVA block, even if the block never executes.",
+        "source": "billing-scenarios",
+        "confidence": "published"
+      }
+    ],
+    "interactionBoundary": {
+      "description": "One billing ID per interaction, any channel, any length. A billing ID can span several end-interaction events (e.g. inbound flow -> VA flow). Billing closes when an action ends it and no further transfer can occur.",
+      "endEvents": [
+        "Exit action (return to calling flow)",
+        "Disconnect action",
+        "Participant hangs up",
+        "Transfer to ACD action",
+        "Error-handling exit/disconnect",
+        "Recognition-failure exit/disconnect",
+        "Max No Input override exit/disconnect",
+        "Agent-escalation exit",
+        "Digital inactivity expiry (72h async timeout)"
+      ],
+      "source": "eu-model"
+    }
+  },
+  "elements": [
+    {
+      "id": "bots-voice",
+      "name": "Bots (Voice)",
+      "category": "usage",
+      "group": "self-service",
+      "tierRef": "bot",
+      "rate": {
+        "eu": 1,
+        "per": 17,
+        "unit": "minute"
+      },
+      "rounding": "each call up to next 15 seconds",
+      "source": "eu-model"
+    },
+    {
+      "id": "bots-digital",
+      "name": "Bots (Digital)",
+      "category": "usage",
+      "group": "self-service",
+      "tierRef": "bot",
+      "rate": {
+        "eu": 1,
+        "per": 51,
+        "unit": "session"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "virtual-agent",
+      "name": "Virtual Agent",
+      "category": "usage",
+      "group": "self-service",
+      "tierRef": "va",
+      "rate": {
+        "eu": 0.5,
+        "per": 1,
+        "unit": "interaction"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "agentic-virtual-agent",
+      "name": "Agentic Virtual Agent",
+      "category": "usage",
+      "group": "self-service",
+      "tierRef": "ava",
+      "rate": {
+        "eu": 1.2,
+        "per": 1,
+        "unit": "interaction"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "agent-copilot-named",
+      "name": "Agent Copilot (named)",
+      "category": "fixed",
+      "group": "agent-assist",
+      "rate": {
+        "eu": 40,
+        "per": 1,
+        "unit": "user-month"
+      },
+      "licenseModel": "named",
+      "source": "eu-model",
+      "notes": "Included automatically with CX 4. When enabled, Supervisor Copilot summaries/insights do not consume AI Summary EUs."
+    },
+    {
+      "id": "agent-copilot-concurrent",
+      "name": "Agent Copilot (concurrent)",
+      "category": "fixed",
+      "group": "agent-assist",
+      "rate": {
+        "eu": 60,
+        "per": 1,
+        "unit": "user-month"
+      },
+      "licenseModel": "concurrent",
+      "source": "eu-model"
+    },
+    {
+      "id": "sta-named",
+      "name": "Speech and Text Analytics add-on (named)",
+      "category": "fixed",
+      "group": "analytics",
+      "rate": {
+        "eu": 30,
+        "per": 1,
+        "unit": "user-month"
+      },
+      "licenseModel": "named",
+      "source": "eu-model"
+    },
+    {
+      "id": "sta-concurrent",
+      "name": "Speech and Text Analytics add-on (concurrent)",
+      "category": "fixed",
+      "group": "analytics",
+      "rate": {
+        "eu": 45,
+        "per": 1,
+        "unit": "user-month"
+      },
+      "licenseModel": "concurrent",
+      "source": "eu-model"
+    },
+    {
+      "id": "ai-scoring",
+      "name": "AI Scoring",
+      "category": "usage",
+      "group": "quality",
+      "rate": {
+        "eu": 1,
+        "per": 20,
+        "unit": "evaluation"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "ai-translate",
+      "name": "AI Translate",
+      "category": "usage",
+      "group": "agent-assist",
+      "rate": {
+        "eu": 1,
+        "per": 2,
+        "unit": "translation"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "ai-summary",
+      "name": "AI Summary and Insights",
+      "category": "usage",
+      "group": "agent-assist",
+      "rate": {
+        "eu": 1,
+        "per": 50,
+        "unit": "summary"
+      },
+      "source": "eu-model",
+      "waivedWhen": "agent-copilot enabled (Supervisor Copilot summaries ride on Agent Copilot)"
+    },
+    {
+      "id": "predictive-routing",
+      "name": "Predictive Routing",
+      "category": "usage",
+      "group": "routing",
+      "rate": {
+        "eu": 1,
+        "per": 17,
+        "unit": "routed interaction"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "gc-copilot",
+      "name": "Genesys Cloud Copilot (admin AI actions)",
+      "category": "usage",
+      "group": "admin",
+      "rate": {
+        "eu": 1,
+        "per": 20,
+        "unit": "AI action"
+      },
+      "source": "eu-model",
+      "notes": "Knowledge queries and utility actions are free. Multi-step tasks count each tool call (e.g. assign a role to 1 user = 3 actions).",
+      "detailSource": "copilot-actions"
+    },
+    {
+      "id": "msg-apple",
+      "name": "Apple Messages for Business",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "msg-facebook",
+      "name": "Facebook Messenger",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model",
+      "notes": "Legacy per-conversation pricing if org has not moved to EU pricing."
+    },
+    {
+      "id": "msg-instagram",
+      "name": "Instagram Direct Messaging",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "msg-whatsapp",
+      "name": "WhatsApp Messaging",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model",
+      "notes": "Meta per-message charges pass through separately."
+    },
+    {
+      "id": "msg-x",
+      "name": "X (Twitter) Direct Messaging",
+      "category": "usage",
+      "group": "messaging",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "message (in+out)"
+      },
+      "source": "eu-model",
+      "notes": "X integration tier fees apply separately."
+    },
+    {
+      "id": "social-ingest",
+      "name": "Genesys Cloud Social (post ingestion)",
+      "category": "usage",
+      "group": "social",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "post ingested per channel"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "social-responses",
+      "name": "Social Post Responses",
+      "category": "usage",
+      "group": "social",
+      "rate": {
+        "eu": 1,
+        "per": 400,
+        "unit": "outbound response per channel"
+      },
+      "source": "eu-model"
+    },
+    {
+      "id": "predictive-engagement",
+      "name": "Predictive Engagement / digital user tracking",
+      "category": "usage",
+      "group": "engagement",
+      "rate": {
+        "eu": 0,
+        "per": 1,
+        "unit": "event"
+      },
+      "source": "dut-faq",
+      "notes": "No EU charge for EU customers."
+    }
+  ],
+  "billingRules": [
+    {
+      "id": "R1",
+      "rule": "Self-service resources on one interaction are billed at the single highest tier visited, by tier rank (bot < VA < AVA), not by computed cost. A long bot call that later reaches AVA is billed 1.2 EU only.",
+      "source": "billing-scenarios",
+      "confidence": "confirmed-by-chad"
+    },
+    {
+      "id": "R2",
+      "rule": "AVA charge (1.2 EU) is triggered by entering a flow that contains an AVA block, not by executing it.",
+      "source": "billing-scenarios"
+    },
+    {
+      "id": "R3",
+      "rule": "Channel meters (messaging, social) are independent of the self-service tier and add on top (e.g. a WhatsApp conversation handled by a VA = 0.5 EU + 1 EU per 400 messages).",
+      "source": "eu-model",
+      "confidence": "confirmed-by-chad"
+    },
+    {
+      "id": "R4",
+      "rule": "Fixed (per-user) elements are billed per user per month regardless of usage.",
+      "source": "eu-model"
+    },
+    {
+      "id": "R5",
+      "rule": "Free/included allocations net against total monthly EUs; unused units expire monthly.",
+      "source": "eu-model"
+    },
+    {
+      "id": "R6",
+      "rule": "IVR minutes are not EUs. IVR (and, by default, bot) flow time on a voice call draws down the org's pooled fair-use IVR minutes until the call is handed to a VA or AVA; VA/AVA time does not count. Minutes beyond the pool are billed per minute in currency, independent of the EU tier.",
+      "source": "fair-use",
+      "confidence": "confirmed-by-chad"
+    }
+  ],
+  "openQuestions": [
+    "Does bot flow time count toward IVR fair-use minutes? Chad confirmed VA/AVA time does not; the model counts bot time by default with a toggle.",
+    "IVR overage rate ($0.01/min) came from a part of the fair-use page I could only read as a summary; please confirm.",
+    "Digital bot 'session' vs 'interaction' definition (revised 2026-06-01) - does a digital session reset on re-entry?",
+    "Exact prepaid EU discount and any volume tiers are unpublished."
+  ],
+  "fairUse": {
+    "description": "Non-EU allowances that interact with self-service design. Pooled across the org each month (per billable user x per-user allowance), based on the greater of commit or actual users. No carry-over. Overage billed in currency, not EUs.",
+    "ivrMinutes": {
+      "name": "Basic routing / IVR minutes",
+      "measuredAs": "Self-service flow time on a voice call until it is handed to a VA or AVA: Architect IVR flow time, plus bot flow time by default (toggle). Time in VA/AVA is not counted (confirmed by Chad 2026-11-12). In-queue flows are excluded.",
+      "perUserPerMonth": {
+        "named": {
+          "CX1": 1750,
+          "CX2": 2500,
+          "CX3": 3250,
+          "CX4": 4250,
+          "Communicate": 500
+        },
+        "concurrent": {
+          "CX1": 2275,
+          "CX2": 3250,
+          "CX3": 4225,
+          "CX4": 5525
+        }
+      },
+      "overagePerMinute": {
+        "USD": 0.01,
+        "CAD": 0.011,
+        "AUD": 0.013,
+        "NZD": 0.014,
+        "GBP": 0.007,
+        "EUR": 0.008,
+        "BRL": 0.04,
+        "JPY": 1.0,
+        "ZAR": 0.14
+      },
+      "invoiceCode": "PC-170-NV-PCIVRPERMIN",
+      "source": "fair-use",
+      "confidence": "allowances published; overage rate and measurement rule read from a part of the page that only came through as a summary - verify",
+      "includesBotTimeDefault": true
+    }
+  }
+};
+const SAMPLE = {
+  "name": "Sample: 200-agent named CX 3 contact center",
+  "licenseModel": "named",
+  "license": "CX3",
+  "agents": 200,
+  "currency": "USD",
+  "fixed": {
+    "agent-copilot-named": 120,
+    "sta-named": 40
+  },
+  "usage": {
+    "ai-scoring": 4000,
+    "ai-translate": 300,
+    "predictive-routing": 25000,
+    "msg-whatsapp": 60000,
+    "gc-copilot": 400
+  },
+  "selfService": {
+    "voice": {
+      "interactions": 40000,
+      "paths": [
+        {
+          "name": "IVR only (menu, then queue)",
+          "share": 40,
+          "tiers": [
+            "ivr"
+          ],
+          "ivrMinutes": 1.5
+        },
+        {
+          "name": "IVR -> voice bot (contained)",
+          "share": 30,
+          "tiers": [
+            "ivr",
+            "bot"
+          ],
+          "botMinutes": 2.5,
+          "ivrMinutes": 0.75
+        },
+        {
+          "name": "IVR -> bot -> VA",
+          "share": 20,
+          "tiers": [
+            "ivr",
+            "bot",
+            "va"
+          ],
+          "botMinutes": 1.5,
+          "ivrMinutes": 0.75
+        },
+        {
+          "name": "IVR -> bot -> VA -> AVA",
+          "share": 10,
+          "tiers": [
+            "ivr",
+            "bot",
+            "va",
+            "ava"
+          ],
+          "ivrMinutes": 0.75
+        }
+      ]
+    },
+    "digital": {
+      "interactions": 15000,
+      "paths": [
+        {
+          "name": "Digital bot only",
+          "share": 60,
+          "tiers": [
+            "bot"
+          ],
+          "botSessions": 1
+        },
+        {
+          "name": "Bot -> VA",
+          "share": 30,
+          "tiers": [
+            "bot",
+            "va"
+          ]
+        },
+        {
+          "name": "Bot -> AVA",
+          "share": 10,
+          "tiers": [
+            "bot",
+            "ava"
+          ]
+        }
+      ]
+    }
+  }
+};
+</script>
+<script>
+/*
+ * Genesys Cloud Experience Unit (EU) calculation engine - v0.1.0-draft
+ * Pure, dependency-free. Works in the browser (window.EUEngine) and Node (require).
+ *
+ *   const { calculate } = require('./eu-engine.js');
+ *   const result = calculate(model, scenario);
+ *
+ * See MODEL.md for the scenario format and the billing rules this implements.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.EUEngine = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const round = (n, d = 4) => Math.round(n * 10 ** d) / 10 ** d;
+  const euPerUnit = (rate) => (rate.per ? rate.eu / rate.per : rate.eu);
+
+  function tierMap(model) {
+    const m = {};
+    model.selfServiceTiers.tiers.forEach((t) => (m[t.id] = t));
+    return m;
+  }
+
+  /** Highest-ranked tier among those an interaction visits (rule R1). */
+  function highestTier(model, tierIds) {
+    const tiers = tierMap(model);
+    return tierIds
+      .map((id) => tiers[id])
+      .filter(Boolean)
+      .reduce((best, t) => (!best || t.rank > best.rank ? t : best), null);
+  }
+
+  /** EUs for ONE interaction on a path. channel: 'voice' | 'digital'. */
+  function interactionEU(model, channel, path) {
+    const top = highestTier(model, path.tiers || []);
+    if (!top) return { tier: null, eu: 0 };
+    if (top.id === 'bot') {
+      if (channel === 'voice') {
+        // A call that reaches a bot is in it for at least one 15-second increment.
+        const entered = (path.botMinutes || 0) * 60;
+        const secs = Math.max(entered, 15);
+        const inc = 15; // per-call rounding up to next 15 s
+        const billedMin = (Math.ceil(secs / inc) * inc) / 60;
+        return { tier: top.id, eu: billedMin * euPerUnit(top.voice), billedMinutes: billedMin, minimumApplied: entered < 15 };
+      }
+      const given = path.botSessions == null ? 1 : path.botSessions;
+      const sessions = Math.max(given, 1); // reaching a digital bot is at least one session
+      return { tier: top.id, eu: sessions * euPerUnit(top.digital), minimumApplied: given < 1 };
+    }
+    return { tier: top.id, eu: euPerUnit(top) };
+  }
+
+  /** Expected EUs for a channel given a mix of paths (dynamic multi-path). */
+  function selfServiceEU(model, channel, cfg) {
+    if (!cfg || !cfg.interactions) return { eu: 0, paths: [], byTier: {} };
+    const totalShare = (cfg.paths || []).reduce((s, p) => s + (p.share || 0), 0) || 1;
+    const byTier = {};
+    const paths = (cfg.paths || []).map((p) => {
+      const count = cfg.interactions * (p.share || 0) / totalShare;
+      const per = interactionEU(model, channel, p);
+      const eu = count * per.eu;
+      const key = per.tier || 'none';
+      byTier[key] = (byTier[key] || 0) + eu;
+      return { name: p.name, tiers: p.tiers, interactions: round(count, 2), billedTier: per.tier, euPerInteraction: round(per.eu), eu: round(eu, 2), minimumApplied: !!per.minimumApplied };
+    });
+    const eu = paths.reduce((s, p) => s + p.eu, 0);
+    Object.keys(byTier).forEach((k) => (byTier[k] = round(byTier[k], 2)));
+    return { eu: round(eu, 2), paths, byTier };
+  }
+
+  function allocation(model, scenario) {
+    let eu = 0;
+    const lines = [];
+    model.allocations.forEach((a) => {
+      const m = a.appliesTo || {};
+      if (m.licenseModel && m.licenseModel !== scenario.licenseModel) return;
+      if (m.license && m.license !== scenario.license) return;
+      const qty = a.per === 'agent-month' ? scenario.agents || 0 : 1;
+      const v = a.eu * qty;
+      eu += v;
+      lines.push({ id: a.id, name: a.name, eu: v });
+    });
+    return { eu, lines };
+  }
+
+  /**
+   * scenario = {
+   *   licenseModel: 'named'|'concurrent', license: 'CX3', agents: 100, currency: 'USD', pricePerEU?: number,
+   *   fixed:  { '<elementId>': users },
+   *   usage:  { '<elementId>': units },          // non-self-service usage elements
+   *   selfService: { voice: { interactions, paths:[{name,share,tiers:[...],botMinutes}] },
+   *                  digital:{ interactions, paths:[{name,share,tiers:[...],botSessions}] } }
+   * }
+   */
+  function calculate(model, scenario) {
+    const lines = [];
+    const byId = {};
+    model.elements.forEach((e) => (byId[e.id] = e));
+
+    Object.entries(scenario.fixed || {}).forEach(([id, users]) => {
+      const e = byId[id];
+      if (!e || !users) return;
+      lines.push({ id, name: e.name, category: 'fixed', group: e.group, quantity: users, unit: e.rate.unit, eu: round(users * euPerUnit(e.rate), 2), source: e.source });
+    });
+
+    const copilotOn = Object.keys(scenario.fixed || {}).some((k) => k.startsWith('agent-copilot') && scenario.fixed[k] > 0);
+    Object.entries(scenario.usage || {}).forEach(([id, qty]) => {
+      const e = byId[id];
+      if (!e || !qty || e.tierRef) return;
+      let eu = qty * euPerUnit(e.rate);
+      let note;
+      if (id === 'ai-summary' && copilotOn && scenario.summaryCoveredByCopilot) { eu = 0; note = 'waived: Agent Copilot enabled'; }
+      lines.push({ id, name: e.name, category: 'usage', group: e.group, quantity: qty, unit: e.rate.unit, eu: round(eu, 2), note, source: e.source });
+    });
+
+    const ss = scenario.selfService || {};
+    const voice = selfServiceEU(model, 'voice', ss.voice);
+    const digital = selfServiceEU(model, 'digital', ss.digital);
+    if (voice.eu) lines.push({ id: 'self-service-voice', name: 'Self-service (voice) - highest tier', category: 'usage', group: 'self-service', quantity: ss.voice.interactions, unit: 'interaction', eu: voice.eu, source: 'billing-scenarios' });
+    if (digital.eu) lines.push({ id: 'self-service-digital', name: 'Self-service (digital) - highest tier', category: 'usage', group: 'self-service', quantity: ss.digital.interactions, unit: 'interaction', eu: digital.eu, source: 'billing-scenarios' });
+
+    const gross = round(lines.reduce((s, l) => s + l.eu, 0), 2);
+    const alloc = allocation(model, scenario);
+    const net = Math.max(0, round(gross - alloc.eu, 2));
+    const currency = scenario.currency || 'USD';
+    const price = scenario.pricePerEU != null ? scenario.pricePerEU : model.pricing.pricePerEU[currency];
+    const fixedEU = round(lines.filter((l) => l.category === 'fixed').reduce((s, l) => s + l.eu, 0), 2);
+
+    const ivr = ivrFairUse(model, scenario, currency);
+    const euCost = round(net * price, 2);
+
+    return {
+      modelVersion: model.modelVersion,
+      lines,
+      selfService: { voice, digital },
+      ivr,
+      totals: { fixedEU, usageEU: round(gross - fixedEU, 2), grossEU: gross, allocationEU: alloc.eu, netEU: net, unusedAllocationEU: Math.max(0, round(alloc.eu - gross, 2)), currency, pricePerEU: price,
+        cost: euCost, ivrOverageCost: ivr ? ivr.overageCost : 0, totalCost: round(euCost + (ivr ? ivr.overageCost : 0), 2) },
+      allocation: alloc,
+    };
+  }
+
+  /**
+   * IVR minutes are not EUs (rule R6). They draw down a pooled fair-use allowance
+   * (per billable user x license), and minutes past it are billed per minute in currency.
+   * Per voice path: ivrMinutes + botMinutes (bot time toggled by scenario.ivrCountsBotMinutes). VA/AVA time never counts.
+   */
+  function ivrFairUse(model, scenario, currency) {
+    const fu = model.fairUse && model.fairUse.ivrMinutes;
+    const v = scenario.selfService && scenario.selfService.voice;
+    if (!fu) return null;
+    const countBot = scenario.ivrCountsBotMinutes != null ? !!scenario.ivrCountsBotMinutes : fu.includesBotTimeDefault !== false;
+    let minutes = 0;
+    if (v && v.interactions) {
+      const totalShare = (v.paths || []).reduce((s, p) => s + (p.share || 0), 0) || 1;
+      (v.paths || []).forEach((p) => { minutes += v.interactions * (p.share || 0) / totalShare * ((p.ivrMinutes || 0) + (countBot ? (p.botMinutes || 0) : 0)); });
+    }
+    minutes += scenario.extraIvrMinutes || 0;
+    const perUser = ((fu.perUserPerMonth[scenario.licenseModel] || {})[scenario.license]) || 0;
+    const users = scenario.ivrBillableUsers != null ? scenario.ivrBillableUsers : (scenario.agents || 0);
+    const allowance = perUser * users;
+    const overageMinutes = Math.max(0, minutes - allowance);
+    const rate = scenario.ivrOverageRate != null ? scenario.ivrOverageRate : (fu.overagePerMinute[currency] || 0);
+    return { minutes: round(minutes, 0), countsBotMinutes: countBot, perUser, users, allowance, overageMinutes: round(overageMinutes, 0),
+      usedPct: allowance ? round(minutes / allowance * 100, 1) : null, ratePerMinute: rate, overageCost: round(overageMinutes * rate, 2) };
+  }
+
+  return { calculate, interactionEU, highestTier, selfServiceEU, ivrFairUse, euPerUnit };
+});
+
+</script>
+<script>
+(function(){
+const E = window.EUEngine, M = MODEL;
+const $ = (s, r=document) => r.querySelector(s);
+const fmt = (n, d=0) => Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtEU = n => fmt(n, n < 10 && n % 1 ? 2 : 0);
+const TIERS = M.selfServiceTiers.tiers;
+const TIER_LABEL = {ivr:'IVR', bot:'Bot', va:'VA', ava:'AVA'};
+const els = Object.fromEntries(M.elements.map(e => [e.id, e]));
+const srcLink = id => { const s = M.sources[id]; return s ? `<a class="src" href="${s.url}" target="_blank" rel="noopener">${s.title.split(' (')[0]} ↗</a>` : ''; };
+const rateText = r => r.per === 1 ? `${r.eu} EU per ${r.unit}` : `${r.eu} EU per ${fmt(r.per)} ${r.unit}`;
+
+let S = JSON.parse(JSON.stringify(SAMPLE));
+try { const saved = localStorage.getItem('eu-scenario'); if (saved) S = JSON.parse(saved); } catch(e){}
+
+$('#ver').textContent = M.modelVersion; $('#asof').textContent = M.asOf;
+$('#currency').innerHTML = Object.keys(M.pricing.pricePerEU).map(c => `<option>${c}</option>`).join('');
+
+// Ladder
+$('#ladder').innerHTML = TIERS.map(t => {
+  let r = t.id === 'ivr' ? 'No EU charge' : t.id === 'bot' ? `Voice 1 EU / 17 min · Digital 1 EU / 51 sessions` : `${t.eu} EU per interaction`;
+  return `<div class="rung ${t.id}"><b>${TIER_LABEL[t.id]}</b><span>${r}</span></div>`;
+}).join('');
+
+function bindOrg(){
+  $('#licenseModel').value = S.licenseModel; $('#license').value = S.license; $('#agents').value = S.agents;
+  $('#currency').value = S.currency || 'USD'; $('#price').value = S.pricePerEU ?? ''; $('#ivrRate').value = S.ivrOverageRate ?? ''; $('#ivrBot').checked = S.ivrCountsBotMinutes ?? (M.fairUse?.ivrMinutes.includesBotTimeDefault !== false); $('#summaryWaive').checked = !!S.summaryCoveredByCopilot;
+}
+['licenseModel','license','currency'].forEach(id => $('#'+id).addEventListener('change', e => { S[id] = e.target.value; refresh(); }));
+$('#agents').addEventListener('input', e => { S.agents = +e.target.value || 0; refresh(); });
+$('#price').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.pricePerEU; else S.pricePerEU = +v; refresh(); });
+$('#ivrRate').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.ivrOverageRate; else S.ivrOverageRate = +v; refresh(); });
+$('#ivrBot').addEventListener('change', e => { S.ivrCountsBotMinutes = e.target.checked; refresh(false); });
+$('#summaryWaive').addEventListener('change', e => { S.summaryCoveredByCopilot = e.target.checked; refresh(); });
+
+function renderChannels(){
+  S.selfService = S.selfService || {};
+  $('#channels').innerHTML = ['voice','digital'].map(ch => {
+    const c = S.selfService[ch] = S.selfService[ch] || {interactions:0, paths:[]};
+    const unitHdr = ch === 'voice' ? 'Bot min / call' : 'Bot sessions';
+    return `<div style="margin-top:14px">
+      <div class="panel-head" style="margin-bottom:6px"><h2 style="font-size:15px">${ch === 'voice' ? 'Voice' : 'Digital'}</h2>
+        <label class="f" style="flex-direction:row;align-items:center;gap:8px">Interactions / month <input type="number" min="0" data-ch="${ch}" data-k="interactions" value="${c.interactions}"></label></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num">IVR min / call</th>':''}<th class="num">${unitHdr}</th><th>Billed as</th><th class="num">EU / int.</th><th class="num">EU / month</th>${ch==='voice'?'<th class="num">IVR fair-use min / month</th>':''}<th></th></tr></thead>
+      <tbody>${c.paths.map((p,i) => `<tr data-ch="${ch}" data-i="${i}">
+        <td class="pathname"><input aria-label="Path name" data-k="name" value="${(p.name||'').replace(/"/g,'&quot;')}"></td>
+        <td class="num"><input type="number" min="0" max="100" data-k="share" value="${p.share}" style="width:70px"></td>
+        <td><div class="tiers">${TIERS.map(t => `<button class="tierbtn ${t.id} ${p.tiers.includes(t.id)?'on':''}" data-tier="${t.id}" aria-pressed="${p.tiers.includes(t.id)}">${TIER_LABEL[t.id]}</button>`).join('')}</div></td>
+        ${ch==='voice'?`<td class="num"><input type="number" min="0" step="0.25" data-k="ivrMinutes" aria-label="IVR minutes per call" value="${p.ivrMinutes ?? 0}" style="width:70px"></td>`:''}
+        <td class="num"><input type="number" min="0" step="0.25" data-k="${ch==='voice'?'botMinutes':'botSessions'}" value="${(ch==='voice'?p.botMinutes:p.botSessions) ?? (ch==='voice'?0:1)}" style="width:70px"></td>
+        <td class="billed"></td><td class="num per"></td><td class="num tot"></td>${ch==='voice'?'<td class="num fu"></td>':''}
+        <td><button class="btn x" data-del aria-label="Remove path">✕</button></td></tr>`).join('')}</tbody></table></div>
+      <div class="row-actions"><button class="btn" data-add="${ch}">Add path</button><span class="small share-check" data-ch="${ch}"></span></div>
+    </div>`;
+  }).join('');
+}
+$('#channels').addEventListener('input', e => {
+  const t = e.target; const ch = t.dataset.ch || t.closest('tr')?.dataset.ch; if (!ch) return;
+  const c = S.selfService[ch];
+  if (t.dataset.k === 'interactions') c.interactions = +t.value || 0;
+  else { const p = c.paths[+t.closest('tr').dataset.i]; p[t.dataset.k] = t.dataset.k === 'name' ? t.value : (+t.value || 0); }
+  refresh(false);
+});
+$('#channels').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.add) { S.selfService[b.dataset.add].paths.push({name:'New path', share:0, tiers:['ivr']}); refresh(); return; }
+  const tr = b.closest('tr'); if (!tr) return;
+  const c = S.selfService[tr.dataset.ch], i = +tr.dataset.i;
+  if (b.hasAttribute('data-del')) { c.paths.splice(i,1); refresh(); return; }
+  if (b.dataset.tier) { const p = c.paths[i]; const k = p.tiers.indexOf(b.dataset.tier); k >= 0 ? p.tiers.splice(k,1) : p.tiers.push(b.dataset.tier); refresh(); }
+});
+
+function renderFixed(){
+  const fx = M.elements.filter(e => e.category === 'fixed' && (!e.licenseModel || e.licenseModel === S.licenseModel));
+  S.fixed = S.fixed || {};
+  $('#fixedTbl tbody').innerHTML = fx.map(e => `<tr><td>${e.name}</td><td class="num">${e.rate.eu}</td>
+    <td class="num"><input type="number" min="0" data-fixed="${e.id}" value="${S.fixed[e.id]||0}"></td><td class="num" data-out="${e.id}"></td><td>${srcLink(e.source)}</td></tr>`).join('');
+}
+$('#fixedTbl').addEventListener('input', e => { S.fixed[e.target.dataset.fixed] = +e.target.value || 0; refresh(false); });
+
+function renderUsage(){
+  const us = M.elements.filter(e => e.category === 'usage' && !e.tierRef);
+  S.usage = S.usage || {};
+  $('#usageTbl tbody').innerHTML = us.map(e => `<tr><td>${e.name}</td><td class="small">${rateText(e.rate)}</td>
+    <td class="num"><input type="number" min="0" data-usage="${e.id}" value="${S.usage[e.id]||0}"></td><td class="num" data-out="${e.id}"></td><td>${srcLink(e.source)}</td></tr>`).join('');
+}
+$('#usageTbl').addEventListener('input', e => { S.usage[e.target.dataset.usage] = +e.target.value || 0; refresh(false); });
+
+const GROUP_COLORS = () => { const cs = getComputedStyle(document.documentElement); const v = n => cs.getPropertyValue(n).trim();
+  return { fixed: v('--fixed'), ivr: v('--t-ivr'), bot: v('--t-bot'), va: v('--t-va'), ava: v('--t-ava'), other: v('--accent') }; };
+
+function refresh(rebuild = true){
+  // Drop fixed seats that belong to the other license model
+  Object.keys(S.fixed||{}).forEach(k => { const e = els[k]; if (e && e.licenseModel && e.licenseModel !== S.licenseModel) delete S.fixed[k]; });
+  if (rebuild) { renderChannels(); renderFixed(); renderUsage(); }
+  const R = E.calculate(M, S);
+  try { localStorage.setItem('eu-scenario', JSON.stringify(S)); } catch(e){}
+
+  // per-row outputs
+  R.lines.forEach(l => { const td = document.querySelector(`[data-out="${l.id}"]`); if (td) td.textContent = fmtEU(l.eu) + (l.note ? ' *' : ''); });
+  document.querySelectorAll('[data-out]').forEach(td => { if (!R.lines.find(l => l.id === td.dataset.out)) td.textContent = '0'; });
+  ['voice','digital'].forEach(ch => {
+    const res = R.selfService[ch];
+    document.querySelectorAll(`#channels tr[data-ch="${ch}"]`).forEach(tr => {
+      const p = res.paths[+tr.dataset.i]; if (!p) return;
+      tr.querySelector('.billed').innerHTML = (p.billedTier ? `<span class="chip ${p.billedTier}">${TIER_LABEL[p.billedTier]}</span>` : '<span class="chip none">none</span>')
+        + (p.minimumApplied ? `<div class="small bad" style="max-width:150px">${ch === 'voice' ? 'Bot minutes are 0, so the 15-second minimum is charged. Enter bot minutes per call.' : 'Bot sessions are 0, so 1 session is charged.'}</div>` : '');
+      const fu = tr.querySelector('.fu');
+      if (fu) { const sp = S.selfService[ch].paths[+tr.dataset.i]; const cb = R.ivr ? R.ivr.countsBotMinutes : true;
+        fu.textContent = fmt(p.interactions * ((sp.ivrMinutes || 0) + (cb ? (sp.botMinutes || 0) : 0))); }
+      tr.querySelector('.per').textContent = p.euPerInteraction.toFixed(p.euPerInteraction && p.euPerInteraction < 1 ? 3 : 2);
+      tr.querySelector('.tot').textContent = fmtEU(p.eu);
+      tr.querySelectorAll('.tierbtn').forEach(b => b.classList.toggle('billed', b.dataset.tier === p.billedTier && b.classList.contains('on')));
+    });
+    const sum = (S.selfService[ch].paths||[]).reduce((s,p) => s + (+p.share||0), 0);
+    const el = document.querySelector(`.share-check[data-ch="${ch}"]`);
+    if (el) el.innerHTML = Math.abs(sum - 100) < 0.01 || !S.selfService[ch].paths.length ? `<span class="ok">Shares total 100%</span>` : `<span class="bad">Shares total ${fmt(sum,1)}%. They are scaled to 100%.</span>`;
+  });
+
+  // totals
+  const T = R.totals;
+  $('#netEU').textContent = fmt(T.netEU) + ' EU';
+  $('#cost').textContent = `≈ ${fmt(T.cost, 2)} ${T.currency} at ${T.pricePerEU} per EU` + (S.pricePerEU != null ? ' (override)' : ' (list)');
+  $('#kv').innerHTML = `<dt>Fixed elements</dt><dd>${fmt(T.fixedEU,1)}</dd><dt>Usage elements</dt><dd>${fmt(T.usageEU,1)}</dd>
+    <dt class="sum">Gross</dt><dd class="sum">${fmt(T.grossEU,1)}</dd>
+    ${R.allocation.lines.map(a => `<dt>− ${a.name}</dt><dd>${fmt(a.eu)}</dd>`).join('')}
+    <dt class="sum">Net billable</dt><dd class="sum">${fmt(T.netEU,1)}</dd>
+    <dt>EU cost</dt><dd>${fmt(T.cost,2)}</dd><dt>IVR overage cost</dt><dd>${fmt(T.ivrOverageCost,2)}</dd>
+    <dt class="sum">Total ${T.currency}</dt><dd class="sum">${fmt(T.totalCost,2)}</dd>
+    ${T.unusedAllocationEU ? `<dt>Unused allocation (expires)</dt><dd>${fmt(T.unusedAllocationEU)}</dd>` : ''}`;
+
+  // IVR fair use meter
+  const I = R.ivr;
+  if (I) {
+    const pct = I.allowance ? Math.min(100, I.minutes / I.allowance * 100) : (I.minutes ? 100 : 0);
+    const over = I.overageMinutes > 0;
+    $('#ivrBar').innerHTML = `<i style="width:${pct}%;background:${over ? 'var(--warn)' : 'var(--t-ivr)'}"></i>`;
+    $('#ivrKv').innerHTML = `<dt>IVR minutes this month</dt><dd>${fmt(I.minutes)}</dd>
+      <dt>Pool (${fmt(I.users)} × ${fmt(I.perUser)})</dt><dd>${fmt(I.allowance)}</dd>
+      <dt>Pool used</dt><dd class="${over ? 'bad' : 'ok'}">${I.usedPct == null ? 'n/a' : fmt(I.usedPct,1) + '%'}</dd>
+      <dt>Overage minutes</dt><dd>${fmt(I.overageMinutes)}</dd>
+      <dt class="sum">Overage cost</dt><dd class="sum">${fmt(I.overageCost,2)} ${T.currency}</dd>`;
+  }
+
+  // stacked bar: fixed, self-service by tier, other usage
+  const C = GROUP_COLORS();
+  const seg = [{k:'Fixed (per user)', v:T.fixedEU, c:C.fixed}];
+  ['bot','va','ava'].forEach(t => { const v = (R.selfService.voice.byTier[t]||0) + (R.selfService.digital.byTier[t]||0); seg.push({k:`Self-service billed as ${TIER_LABEL[t]}`, v, c:C[t]}); });
+  const other = R.lines.filter(l => l.category==='usage' && l.group !== 'self-service').reduce((s,l)=>s+l.eu,0);
+  seg.push({k:'Other usage', v:other, c:C.other});
+  const g = T.grossEU || 1;
+  $('#bar').innerHTML = seg.map(s => `<i style="width:${s.v/g*100}%;background:${s.c}" title="${s.k}: ${fmt(s.v)} EU"></i>`).join('');
+  $('#legend').innerHTML = seg.map(s => `<div><s style="background:${s.c}"></s><span>${s.k}</span><em>${fmt(s.v)} · ${fmt(s.v/g*100,0)}%</em></div>`).join('');
+
+  // narrative
+  const v = R.selfService.voice, d = R.selfService.digital;
+  const top = [...R.lines].sort((a,b)=>b.eu-a.eu)[0];
+  const ssInt = (S.selfService.voice?.interactions||0) + (S.selfService.digital?.interactions||0);
+  const ssEU = v.eu + d.eu;
+  const avaShare = ((v.byTier.ava||0)+(d.byTier.ava||0)) / (ssEU||1) * 100;
+  $('#narrative').innerHTML = `
+    <p>This ${S.licenseModel} ${S.license} org of ${fmt(S.agents)} agents uses about <b>${fmt(T.grossEU)} EU</b> a month. The free allocation covers ${fmt(Math.min(T.allocationEU,T.grossEU))} of them, leaving <b>${fmt(T.netEU)} EU</b> (≈ ${fmt(T.cost,2)} ${T.currency}) to pay for.</p>
+    <p>Fixed per-user elements are ${fmt(T.fixedEU)} EU (${fmt(T.fixedEU/g*100)}%) and do not move with volume. The largest single line is ${top ? `${top.name} at ${fmt(top.eu)} EU` : 'none'}.</p>
+    ${ssInt ? `<p>Self-service handles ${fmt(ssInt)} interactions for ${fmt(ssEU)} EU, an average of ${(ssEU/ssInt).toFixed(3)} EU each. ${avaShare > 0 ? `Paths that reach an AVA make up ${fmt(avaShare)}% of that cost, because any interaction that enters an AVA flow is billed 1.2 EU no matter what else it touched.` : ''}</p>` : ''}
+    ${I ? `<p>Voice self-service before any VA/AVA hand-off (IVR${I.countsBotMinutes ? ' and bot' : ''} time) uses about ${fmt(I.minutes)} fair-use minutes, ${I.usedPct == null ? 'with no fair-use pool for this license' : fmt(I.usedPct,1) + '% of the pooled ' + fmt(I.allowance) + '-minute fair-use allowance'}. ${I.overageMinutes ? `The ${fmt(I.overageMinutes)} minutes over the pool add ${fmt(I.overageCost,2)} ${T.currency}, billed outside EUs.` : 'Nothing is billed for IVR time at this volume.'}</p>` : ''}
+    ${T.unusedAllocationEU ? `<p>${fmt(T.unusedAllocationEU)} EU of allocation goes unused this month and does not carry over.</p>` : ''}`;
+  $('#jsonBox').value = JSON.stringify(S, null, 2);
+}
+
+// Rate card
+$('#rateTbl tbody').innerHTML = M.elements.map(e => `<tr><td>${e.name}</td><td><span class="cat ${e.category}">${e.category === 'fixed' ? 'Fixed' : 'Usage'}</span></td><td class="small">${e.group}</td>
+  <td>${rateText(e.rate)}${e.rounding ? `<div class="small">${e.rounding}</div>` : ''}</td><td class="num">${E.euPerUnit(e.rate).toFixed(4)}</td>
+  <td class="small">${[e.notes, e.waivedWhen ? 'Waived when ' + e.waivedWhen : ''].filter(Boolean).join(' ')}</td><td>${srcLink(e.source)}</td></tr>`).join('')
+  + (M.fairUse ? `<tr><td>${M.fairUse.ivrMinutes.name}</td><td><span class="cat usage">Fair use</span></td><td class="small">self-service</td><td>Pooled per user: ${Object.entries(M.fairUse.ivrMinutes.perUserPerMonth[S.licenseModel]||{}).map(([k,v])=>k+' '+fmt(v)).join(', ')} min / user / month (${S.licenseModel}). Then ${M.fairUse.ivrMinutes.overagePerMinute.USD} USD per minute.</td><td class="num">not EU</td><td class="small">${M.fairUse.ivrMinutes.measuredAs}</td><td>${srcLink('fair-use')}</td></tr>` : '')
+  + M.allocations.map(a => `<tr><td>${a.name}</td><td><span class="cat fixed">Credit</span></td><td class="small">allocation</td><td>−${a.eu} EU per ${a.per.replace('-',' ')}</td><td class="num">−${a.eu}</td><td class="small">Expires monthly</td><td>${srcLink(a.source)}</td></tr>`).join('');
+
+// Rules
+$('#rulesPanel').innerHTML = `<h2>How billing works</h2>
+  <p>${M.selfServiceTiers.description}</p>
+  <ul>${M.billingRules.map(r => `<li><b>${r.id}.</b> ${r.rule} ${r.confidence === 'inferred' ? '<span class="cat usage">inferred</span>' : r.confidence === 'confirmed-by-chad' ? '<span class="cat fixed">confirmed by Chad</span>' : ''} ${srcLink(r.source)}</li>`).join('')}</ul>
+  <h2 style="margin-top:16px">What ends an interaction</h2>
+  <p>${M.selfServiceTiers.interactionBoundary.description}</p>
+  <ul>${M.selfServiceTiers.interactionBoundary.endEvents.map(x => `<li>${x}</li>`).join('')}</ul>`;
+$('#openQ').innerHTML = `<h2>Open questions for review</h2><div class="warnbox"><ul>${M.openQuestions.map(q => `<li>${q}</li>`).join('')}</ul></div>`;
+
+// Tabs
+document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('nav.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  ['scenario','rates','rules','json'].forEach(t => $('#tab-'+t).hidden = t !== b.dataset.tab);
+}));
+
+// JSON
+$('#copyJson').addEventListener('click', () => {
+  const box = $('#jsonBox');
+  navigator.clipboard.writeText(box.value).then(() => $('#jsonMsg').textContent = 'Copied.').catch(() => { box.select(); $('#jsonMsg').textContent = 'Selected. Press Ctrl+C to copy.'; });
+});
+$('#loadJson').addEventListener('click', () => {
+  try { S = JSON.parse($('#jsonBox').value); bindOrg(); refresh(); $('#jsonMsg').textContent = 'Loaded.'; }
+  catch(e) { $('#jsonMsg').textContent = 'That is not valid JSON: ' + e.message; }
+});
+$('#resetJson').addEventListener('click', () => { S = JSON.parse(JSON.stringify(SAMPLE)); bindOrg(); refresh(); $('#jsonMsg').textContent = 'Sample loaded.'; });
+
+bindOrg(); refresh();
+})();
+</script>
+
+</body>
+</html>

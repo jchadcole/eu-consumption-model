@@ -309,7 +309,8 @@ function refresh(rebuild = true){
     document.querySelectorAll(`#channels tr[data-ch="${ch}"]`).forEach(tr => {
       const p = res.paths[+tr.dataset.i]; if (!p) return;
       tr.querySelector('.billed').innerHTML = (p.billedTier ? `<span class="chip ${p.billedTier}">${TIER_LABEL[p.billedTier]}</span>` : '<span class="chip none">none</span>')
-        + (p.minimumApplied ? `<div class="small bad" style="max-width:170px">${ch === 'voice' ? 'Bot minutes are 0, so the 15-second minimum is charged. Enter bot minutes per call.' : 'Bot sessions are 0, so 1 session is charged.'}</div>` : '');
+        + (p.minimumApplied ? `<div class="small bad" style="max-width:170px">${ch === 'voice' ? 'Bot minutes are 0, so the 15-second minimum is charged. Enter bot minutes per call.' : 'Bot sessions are 0, so 1 session is charged.'}</div>` : '')
+        + (ch === 'voice' && (() => { const sp = S.selfService[ch].paths[+tr.dataset.i]; return sp.tiers.includes('bot') && (sp.botMinutes || 0) > (sp.ivrMinutes || 0); })() ? `<div class="small bad" style="max-width:170px">Bot minutes are more than total IVR minutes. Bot time is part of the total.</div>` : '');
       const fu = tr.querySelector('.fu');
       if (fu) { const sp = S.selfService[ch].paths[+tr.dataset.i]; 
         fu.textContent = fmt(p.interactions * E.fairUseMinutesPerCall(sp)); }

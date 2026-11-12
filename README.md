@@ -1,0 +1,1 @@
+# eu-consumption-model

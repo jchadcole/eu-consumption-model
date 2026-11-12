@@ -47,6 +47,8 @@ th{white-space:nowrap;font-size:11.5px;text-transform:uppercase;letter-spacing:.
 td.num,th.num{text-align:right;font-family:var(--f-mono)}
 td input[type=number]{width:84px;padding:4px 6px}
 td.rate{white-space:nowrap}
+.tier-totals{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tier-totals b{font-family:var(--f-mono)}
 .sub-h{font-size:10px;letter-spacing:.03em;text-transform:none;font-weight:500;color:var(--muted);opacity:.85}
 td .dash{color:var(--muted);font-family:var(--f-mono)}
 .chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;color:#fff;white-space:nowrap}
@@ -127,6 +129,7 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
         <div class="panel-head"><h2>Self-service paths</h2><span class="hint">Each interaction is billed only at the highest tier it touches. Minutes are averages per call. Total IVR minutes covers all self-service time; VA and AVA add their flat fee when selected.</span></div>
         <div class="ladder" id="ladder"></div>
         <div id="channels"></div>
+        <div id="tierTotals" class="tier-totals" aria-live="polite"></div>
       </section>
 
       <div class="pair">
@@ -354,19 +357,23 @@ function refresh(rebuild = true){
   // stacked bar: fixed, self-service by tier, other usage
   const C = GROUP_COLORS();
   const seg = [{k:'Fixed (per user)', v:T.fixedEU, c:C.fixed}];
-  ['bot','va','ava'].forEach(t => { const v = (R.selfService.voice.byTier[t]||0) + (R.selfService.digital.byTier[t]||0); seg.push({k:`Self-service billed as ${TIER_LABEL[t]}`, v, c:C[t]}); });
+  ['bot','va','ava'].forEach(t => { const v = R.selfService.tierTotals[t].billed; seg.push({k:`Self-service billed as ${TIER_LABEL[t]}`, v, c:C[t]}); });
   const other = R.lines.filter(l => l.category==='usage' && l.group !== 'self-service').reduce((s,l)=>s+l.eu,0);
   seg.push({k:'Other usage', v:other, c:C.other});
   const g = T.grossEU || 1;
   $('#bar').innerHTML = seg.map(s => `<i style="width:${s.v/g*100}%;background:${s.c}" title="${s.k}: ${fmt(s.v)} EU"></i>`).join('');
   $('#legend').innerHTML = seg.map(s => `<div><s style="background:${s.c}"></s><span>${s.k}</span><em>${fmt(s.v)} · ${fmt(s.v/g*100,0)}%</em></div>`).join('');
 
+  // per-tier monthly totals, rounded up (rule R7)
+  $('#tierTotals').innerHTML = `<span class="small">Monthly tier totals, voice + digital, rounded up to whole EUs:</span>` + ['bot','va','ava'].map(t => `<span><span class="chip ${t}">${TIER_LABEL[t]}</span> ${fmt(R.selfService.tierTotals[t].raw, 2)} → <b>${fmt(R.selfService.tierTotals[t].billed)}</b> EU</span>`).join('');
+
   // narrative
   const v = R.selfService.voice, d = R.selfService.digital;
   const top = [...R.lines].sort((a,b)=>b.eu-a.eu)[0];
   const ssInt = (S.selfService.voice?.interactions||0) + (S.selfService.digital?.interactions||0);
-  const ssEU = v.eu + d.eu;
-  const avaShare = ((v.byTier.ava||0)+(d.byTier.ava||0)) / (ssEU||1) * 100;
+  const TT = R.selfService.tierTotals;
+  const ssEU = TT.bot.billed + TT.va.billed + TT.ava.billed;
+  const avaShare = TT.ava.billed / (ssEU||1) * 100;
   $('#narrative').innerHTML = `
     <p>This ${S.licenseModel} ${S.license} org of ${fmt(S.agents)} agents uses about <b>${fmt(T.grossEU)} EU</b> a month. The free allocation covers ${fmt(Math.min(T.allocationEU,T.grossEU))} of them, leaving <b>${fmt(T.netEU)} EU</b> (≈ ${fmt(T.cost,2)} ${T.currency}) to pay for.</p>
     <p>Fixed per-user elements are ${fmt(T.fixedEU)} EU (${fmt(T.fixedEU/g*100)}%) and do not move with volume. The largest single line is ${top ? `${top.name} at ${fmt(top.eu)} EU` : 'none'}.</p>

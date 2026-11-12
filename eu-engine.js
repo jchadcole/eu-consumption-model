@@ -53,20 +53,22 @@
 
   /** Expected EUs for a channel given a mix of paths (dynamic multi-path). */
   function selfServiceEU(model, channel, cfg) {
-    if (!cfg || !cfg.interactions) return { eu: 0, paths: [], byTier: {} };
+    if (!cfg || !cfg.interactions) return { eu: 0, paths: [], byTier: {}, byTierRaw: {} };
     const totalShare = (cfg.paths || []).reduce((s, p) => s + (p.share || 0), 0) || 1;
     const byTier = {};
+    const byTierRaw = {};
     const paths = (cfg.paths || []).map((p) => {
       const count = cfg.interactions * (p.share || 0) / totalShare;
       const per = interactionEU(model, channel, p);
       const eu = count * per.eu;
       const key = per.tier || 'none';
       byTier[key] = (byTier[key] || 0) + eu;
+      byTierRaw[key] = (byTierRaw[key] || 0) + eu;
       return { name: p.name, tiers: p.tiers, interactions: round(count, 2), billedTier: per.tier, euPerInteraction: round(per.eu), eu: round(eu, 2), minimumApplied: !!per.minimumApplied };
     });
     const eu = paths.reduce((s, p) => s + p.eu, 0);
     Object.keys(byTier).forEach((k) => (byTier[k] = round(byTier[k], 2)));
-    return { eu: round(eu, 2), paths, byTier };
+    return { eu: round(eu, 2), paths, byTier, byTierRaw };
   }
 
   function allocation(model, scenario) {
@@ -117,8 +119,16 @@
     const ss = scenario.selfService || {};
     const voice = selfServiceEU(model, 'voice', ss.voice);
     const digital = selfServiceEU(model, 'digital', ss.digital);
-    if (voice.eu) lines.push({ id: 'self-service-voice', name: 'Self-service (voice) - highest tier', category: 'usage', group: 'self-service', quantity: ss.voice.interactions, unit: 'interaction', eu: voice.eu, source: 'billing-scenarios' });
-    if (digital.eu) lines.push({ id: 'self-service-digital', name: 'Self-service (digital) - highest tier', category: 'usage', group: 'self-service', quantity: ss.digital.interactions, unit: 'interaction', eu: digital.eu, source: 'billing-scenarios' });
+    // Rule R7: each interaction may consume a fraction of an EU; the monthly total for each
+    // tier (Bot, VA, AVA; voice + digital combined) is rounded up to the next whole EU.
+    const tierTotals = {};
+    ['bot', 'va', 'ava'].forEach((t) => {
+      const raw = (voice.byTierRaw[t] || 0) + (digital.byTierRaw[t] || 0);
+      const billed = Math.ceil(round(raw, 6));
+      const interactions = [voice, digital].reduce((n, c) => n + c.paths.filter((p) => p.billedTier === t).reduce((a, p) => a + p.interactions, 0), 0);
+      tierTotals[t] = { raw: round(raw, 4), billed, interactions: round(interactions, 0) };
+      if (billed) lines.push({ id: 'self-service-' + t, name: 'Self-service billed as ' + ({ bot: 'Bot', va: 'VA', ava: 'AVA' })[t], category: 'usage', group: 'self-service', quantity: tierTotals[t].interactions, unit: 'interaction', eu: billed, rawEU: tierTotals[t].raw, note: 'monthly total rounded up from ' + round(raw, 2), source: 'billing-scenarios' });
+    });
 
     const gross = round(lines.reduce((s, l) => s + l.eu, 0), 2);
     const alloc = allocation(model, scenario);
@@ -133,7 +143,7 @@
     return {
       modelVersion: model.modelVersion,
       lines,
-      selfService: { voice, digital },
+      selfService: { voice, digital, tierTotals },
       ivr,
       totals: { fixedEU, usageEU: round(gross - fixedEU, 2), grossEU: gross, allocationEU: alloc.eu, netEU: net, unusedAllocationEU: Math.max(0, round(alloc.eu - gross, 2)), currency, pricePerEU: price,
         cost: euCost, ivrOverageCost: ivr ? ivr.overageCost : 0, totalCost: round(euCost + (ivr ? ivr.overageCost : 0), 2) },

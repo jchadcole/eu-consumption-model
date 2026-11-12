@@ -55,6 +55,7 @@ th{white-space:nowrap;font-size:11.5px;text-transform:uppercase;letter-spacing:.
 td.num,th.num{text-align:right;font-family:var(--f-mono)}
 td input[type=number]{width:84px;padding:4px 6px}
 td.rate{white-space:nowrap}
+.sub-h{font-size:10px;letter-spacing:.03em;text-transform:none;font-weight:500;color:var(--muted);opacity:.85}
 td .dash{color:var(--muted);font-family:var(--f-mono)}
 .chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;color:#fff;white-space:nowrap}
 .chip.ivr{background:var(--t-ivr)}.chip.bot{background:var(--t-bot)}.chip.va{background:var(--t-va)}.chip.ava{background:var(--t-ava)}.chip.none{background:var(--muted)}
@@ -130,7 +131,7 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
       </section>
 
       <section class="panel">
-        <div class="panel-head"><h2>Self-service paths</h2><span class="hint">Each interaction is billed only at the highest tier it touches. Minutes are averages per call.</span></div>
+        <div class="panel-head"><h2>Self-service paths</h2><span class="hint">Each interaction is billed only at the highest tier it touches. Minutes are averages per call. VA and AVA are a fixed fee per interaction; their minutes only feed IVR fair use.</span></div>
         <div class="ladder" id="ladder"></div>
         <div id="channels"></div>
       </section>
@@ -1033,7 +1034,7 @@ $('#currency').innerHTML = Object.keys(M.pricing.pricePerEU).map(c => `<option>$
 
 // Ladder
 $('#ladder').innerHTML = TIERS.map(t => {
-  let r = t.id === 'ivr' ? 'No EU charge' : t.id === 'bot' ? `Voice 1 EU / 17 min · Digital 1 EU / 51 sessions` : `${t.eu} EU per interaction`;
+  let r = t.id === 'ivr' ? 'No EU charge' : t.id === 'bot' ? `Voice 1 EU / 17 min · Digital 1 EU / 51 sessions` : `${t.eu} EU flat per interaction, any length`;
   return `<div class="rung ${t.id}"><b>${TIER_LABEL[t.id]}</b><span>${r}</span></div>`;
 }).join('');
 
@@ -1056,7 +1057,7 @@ function renderChannels(){
     return `<div style="margin-top:14px">
       <div class="panel-head" style="margin-bottom:6px"><h2 style="font-size:15px">${ch === 'voice' ? 'Voice' : 'Digital'}</h2>
         <label class="f" style="flex-direction:row;align-items:center;gap:8px">Interactions / month <input type="number" min="0" data-ch="${ch}" data-k="interactions" value="${c.interactions}"></label></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num">IVR min</th>':''}<th class="num">${unitHdr}</th>${ch==='voice'?'<th class="num">VA/AVA min</th>':''}<th>Billed as</th><th class="num">EU / int.</th><th class="num">EU / month</th>${ch==='voice'?'<th class="num">Fair-use min / mo</th>':''}<th></th></tr></thead>
+      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num" title="Counts toward IVR fair use only. No EU charge.">IVR min<div class="sub-h">fair use</div></th>':''}<th class="num"${ch==='voice'?' title="Sets the bot EU charge when Bot is the highest tier, and counts toward IVR fair use."':''}>${unitHdr}${ch==='voice'?'<div class="sub-h">EU + fair use</div>':''}</th>${ch==='voice'?'<th class="num" title="VA and AVA are a fixed EU fee per interaction. These minutes only count toward IVR fair use.">VA/AVA min<div class="sub-h">fair use only</div></th>':''}<th>Billed as</th><th class="num">EU / int.</th><th class="num">EU / month</th>${ch==='voice'?'<th class="num">Fair-use min / mo</th>':''}<th></th></tr></thead>
       <tbody>${c.paths.map((p,i) => `<tr data-ch="${ch}" data-i="${i}">
         <td class="pathname"><input aria-label="Path name" data-k="name" value="${(p.name||'').replace(/"/g,'&quot;')}"></td>
         <td class="num"><input type="number" min="0" max="100" data-k="share" value="${p.share}" style="width:64px"></td>

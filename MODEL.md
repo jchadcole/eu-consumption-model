@@ -70,8 +70,8 @@ Voice and digital interactions can pass through four self-service tiers. Each on
 |---|---|---|
 | 0 | IVR (Architect inbound flow) | 0 EU. IVR time is billed separately in currency once fair-use minutes run out (rule R6) |
 | 1 | Bot flow | Voice: minutes ÷ 17 (15 s rounding per call, so at least 15 s / 0.0147 EU per call that reaches a bot). Digital: sessions ÷ 51 (at least 1 session) |
-| 2 | Virtual Agent | 0.5 EU per interaction |
-| 3 | Agentic Virtual Agent | 1.2 EU per interaction |
+| 2 | Virtual Agent | 0.5 EU flat per interaction, any length |
+| 3 | Agentic Virtual Agent | 1.2 EU flat per interaction, any length |
 
 **Rule R1 (confirmed by Chad).** Per interaction (one billing ID), only the highest tier visited is billed, chosen by tier rank and not by computed cost. AVA always wins over a bot, even a long voice bot call. Lower tiers on the same interaction add nothing. From billing-scenarios: bot → VA = 0.5; bot → AVA = 1.2; bot → VA → AVA = 1.2.
 
@@ -109,9 +109,9 @@ Source: [Genesys Cloud fair use policy](https://help.genesys.cloud/articles/gene
 | CX 4 | 4,250 | 5,525 |
 
 - Pooled across the org: billable users × per-user allowance, based on the greater of commit or actual users. No carry-over.
-- IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions (confirmed by Chad). In-queue flows are excluded. In-queue flows are excluded; ASR, TTS, DTMF and transfers inside the flow count.
+- IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions (confirmed by Chad). In-queue flows are excluded; ASR, TTS, DTMF and transfers inside the flow count.
 - Overage: USD 0.01 per minute (CAD 0.011, AUD 0.013, NZD 0.014, GBP 0.007, EUR 0.008, BRL 0.04, JPY 1.00, ZAR 0.14), invoice code PC-170-NV-PCIVRPERMIN. This rate and the measurement rule came from a part of the page I could only read as a summary, so they need a check.
-- In the engine, each voice path carries `ivrMinutes`, `botMinutes` and `agentMinutes` (VA/AVA time) per call; fair-use minutes are their sum. `botMinutes` also drives the bot EU charge when bot is the top tier. The UI takes an override for the overage rate.
+- In the engine, each voice path carries `ivrMinutes`, `botMinutes` and `agentMinutes` (VA/AVA time) per call; fair-use minutes are their sum. Only `botMinutes` affects EUs (the bot charge when bot is the top tier). VA and AVA are a fixed EU fee per interaction regardless of length (confirmed by Chad), so `agentMinutes` feeds IVR fair use only. The UI takes an override for the overage rate.
 
 ## Scenario input format (engine)
 

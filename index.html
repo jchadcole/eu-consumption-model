@@ -131,7 +131,7 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
       </section>
 
       <section class="panel">
-        <div class="panel-head"><h2>Self-service paths</h2><span class="hint">Each interaction is billed only at the highest tier it touches. Minutes are averages per call. VA and AVA are a fixed fee per interaction; their minutes only feed IVR fair use.</span></div>
+        <div class="panel-head"><h2>Self-service paths</h2><span class="hint">Each interaction is billed only at the highest tier it touches. Minutes are averages per call. Total IVR minutes covers all self-service time; VA and AVA add their flat fee when selected.</span></div>
         <div class="ladder" id="ladder"></div>
         <div id="channels"></div>
       </section>
@@ -207,7 +207,7 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
 const MODEL = {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.3.0-draft",
+  "modelVersion": "0.4.0-draft",
   "asOf": "2026-11-12",
   "status": "draft - first pass for review",
   "sources": {
@@ -701,7 +701,7 @@ const MODEL = {
     "description": "Non-EU allowances that interact with self-service design. Pooled across the org each month (per billable user x per-user allowance), based on the greater of commit or actual users. No carry-over. Overage billed in currency, not EUs.",
     "ivrMinutes": {
       "name": "Basic routing / IVR minutes",
-      "measuredAs": "IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions (confirmed by Chad 2026-11-12). In-queue flows are excluded.",
+      "measuredAs": "IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions. Modeled per path as one input, average total IVR minutes per call. In-queue flows are excluded.",
       "perUserPerMonth": {
         "named": {
           "CX1": 1750,
@@ -772,7 +772,7 @@ const SAMPLE = {
             "bot"
           ],
           "botMinutes": 2.5,
-          "ivrMinutes": 0.75
+          "ivrMinutes": 3.25
         },
         {
           "name": "IVR -> bot -> VA",
@@ -783,8 +783,7 @@ const SAMPLE = {
             "va"
           ],
           "botMinutes": 1.5,
-          "ivrMinutes": 0.75,
-          "agentMinutes": 3
+          "ivrMinutes": 5.25
         },
         {
           "name": "IVR -> bot -> VA -> AVA",
@@ -795,8 +794,7 @@ const SAMPLE = {
             "va",
             "ava"
           ],
-          "ivrMinutes": 0.75,
-          "agentMinutes": 4
+          "ivrMinutes": 4.75
         }
       ]
     },
@@ -980,14 +978,15 @@ const SAMPLE = {
   /**
    * IVR minutes are not EUs (rule R6). They draw down a pooled fair-use allowance
    * (per billable user x license), and minutes past it are billed per minute in currency.
-   * All self-service time on a voice call counts: per path ivrMinutes + botMinutes + agentMinutes (VA/AVA time).
+   * Per voice path, ivrMinutes is the average total self-service time per call (IVR + bot + VA + AVA).
    */
-  /** Fair-use minutes for one call on a path; minutes only count for tiers the path touches. */
+  /**
+   * Fair-use minutes for one call on a path. `ivrMinutes` is the average TOTAL self-service
+   * time per call (IVR + bot + VA + AVA); it is the only input to IVR fair use.
+   * `botMinutes` is separate and only sets the bot EU charge.
+   */
   function fairUseMinutesPerCall(p) {
-    const t = p.tiers || [];
-    return (t.includes('ivr') ? p.ivrMinutes || 0 : 0)
-      + (t.includes('bot') ? p.botMinutes || 0 : 0)
-      + (t.includes('va') || t.includes('ava') ? p.agentMinutes || 0 : 0);
+    return (p.tiers || []).length ? p.ivrMinutes || 0 : 0;
   }
 
   function ivrFairUse(model, scenario, currency) {
@@ -1057,14 +1056,13 @@ function renderChannels(){
     return `<div style="margin-top:14px">
       <div class="panel-head" style="margin-bottom:6px"><h2 style="font-size:15px">${ch === 'voice' ? 'Voice' : 'Digital'}</h2>
         <label class="f" style="flex-direction:row;align-items:center;gap:8px">Interactions / month <input type="number" min="0" data-ch="${ch}" data-k="interactions" value="${c.interactions}"></label></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num" title="Counts toward IVR fair use only. No EU charge.">IVR min<div class="sub-h">fair use</div></th>':''}<th class="num"${ch==='voice'?' title="Sets the bot EU charge when Bot is the highest tier, and counts toward IVR fair use."':''}>${unitHdr}${ch==='voice'?'<div class="sub-h">EU + fair use</div>':''}</th>${ch==='voice'?'<th class="num" title="VA and AVA are a fixed EU fee per interaction. These minutes only count toward IVR fair use.">VA/AVA min<div class="sub-h">fair use only</div></th>':''}<th>Billed as</th><th class="num">EU / int.</th><th class="num">EU / month</th>${ch==='voice'?'<th class="num">Fair-use min / mo</th>':''}<th></th></tr></thead>
+      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num" title="Average total self-service time per call: IVR + bot + VA + AVA. Drives IVR fair use only; no EU charge.">Total IVR min<div class="sub-h">all self-service · fair use</div></th>':''}<th class="num"${ch==='voice'?' title="Minutes spent in the bot. Sets the bot EU charge when Bot is the highest tier."':''}>${unitHdr}${ch==='voice'?'<div class="sub-h">bot EU charge</div>':''}</th><th>Billed as</th><th class="num">EU / int.</th><th class="num">EU / month</th>${ch==='voice'?'<th class="num">Fair-use min / mo</th>':''}<th></th></tr></thead>
       <tbody>${c.paths.map((p,i) => `<tr data-ch="${ch}" data-i="${i}">
         <td class="pathname"><input aria-label="Path name" data-k="name" value="${(p.name||'').replace(/"/g,'&quot;')}"></td>
         <td class="num"><input type="number" min="0" max="100" data-k="share" value="${p.share}" style="width:64px"></td>
         <td><div class="tiers">${TIERS.map(t => `<button class="tierbtn ${t.id} ${p.tiers.includes(t.id)?'on':''}" data-tier="${t.id}" aria-pressed="${p.tiers.includes(t.id)}">${TIER_LABEL[t.id]}</button>`).join('')}</div></td>
-        ${ch==='voice' ? minCell(p, p.tiers.includes('ivr'), 'ivrMinutes', 'IVR minutes per call', 0) : ''}
+        ${ch==='voice' ? minCell(p, p.tiers.length > 0, 'ivrMinutes', 'Average total IVR minutes per call', 0) : ''}
         ${ch==='voice' ? minCell(p, p.tiers.includes('bot'), 'botMinutes', 'Bot minutes per call', 0) : minCell(p, p.tiers.includes('bot'), 'botSessions', 'Bot sessions per interaction', 1)}
-        ${ch==='voice' ? minCell(p, p.tiers.includes('va') || p.tiers.includes('ava'), 'agentMinutes', 'VA or AVA minutes per call', 0) : ''}
         <td class="billed"></td><td class="num per"></td><td class="num tot"></td>${ch==='voice'?'<td class="num fu"></td>':''}
         <td><button class="btn x" data-del aria-label="Remove path">✕</button></td></tr>`).join('')}</tbody></table></div>
       <div class="row-actions"><button class="btn" data-add="${ch}">Add path</button><span class="small share-check" data-ch="${ch}"></span></div>
@@ -1121,7 +1119,8 @@ function refresh(rebuild = true){
     document.querySelectorAll(`#channels tr[data-ch="${ch}"]`).forEach(tr => {
       const p = res.paths[+tr.dataset.i]; if (!p) return;
       tr.querySelector('.billed').innerHTML = (p.billedTier ? `<span class="chip ${p.billedTier}">${TIER_LABEL[p.billedTier]}</span>` : '<span class="chip none">none</span>')
-        + (p.minimumApplied ? `<div class="small bad" style="max-width:170px">${ch === 'voice' ? 'Bot minutes are 0, so the 15-second minimum is charged. Enter bot minutes per call.' : 'Bot sessions are 0, so 1 session is charged.'}</div>` : '');
+        + (p.minimumApplied ? `<div class="small bad" style="max-width:170px">${ch === 'voice' ? 'Bot minutes are 0, so the 15-second minimum is charged. Enter bot minutes per call.' : 'Bot sessions are 0, so 1 session is charged.'}</div>` : '')
+        + (ch === 'voice' && (() => { const sp = S.selfService[ch].paths[+tr.dataset.i]; return sp.tiers.includes('bot') && (sp.botMinutes || 0) > (sp.ivrMinutes || 0); })() ? `<div class="small bad" style="max-width:170px">Bot minutes are more than total IVR minutes. Bot time is part of the total.</div>` : '');
       const fu = tr.querySelector('.fu');
       if (fu) { const sp = S.selfService[ch].paths[+tr.dataset.i]; 
         fu.textContent = fmt(p.interactions * E.fairUseMinutesPerCall(sp)); }

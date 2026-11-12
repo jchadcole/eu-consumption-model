@@ -111,7 +111,7 @@ Source: [Genesys Cloud fair use policy](https://help.genesys.cloud/articles/gene
 - Pooled across the org: billable users × per-user allowance, based on the greater of commit or actual users. No carry-over.
 - IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions (confirmed by Chad). In-queue flows are excluded; ASR, TTS, DTMF and transfers inside the flow count.
 - Overage: USD 0.01 per minute (CAD 0.011, AUD 0.013, NZD 0.014, GBP 0.007, EUR 0.008, BRL 0.04, JPY 1.00, ZAR 0.14), invoice code PC-170-NV-PCIVRPERMIN. This rate and the measurement rule came from a part of the page I could only read as a summary, so they need a check.
-- In the engine, each voice path carries `ivrMinutes`, `botMinutes` and `agentMinutes` (VA/AVA time) per call; fair-use minutes are their sum. Only `botMinutes` affects EUs (the bot charge when bot is the top tier). VA and AVA are a fixed EU fee per interaction regardless of length (confirmed by Chad), so `agentMinutes` feeds IVR fair use only. The UI takes an override for the overage rate.
+- In the engine, each voice path carries two inputs. `ivrMinutes` is the average **total** IVR minutes per call: all self-service time (IVR + bot + VA + AVA), and the only input to fair use. `botMinutes` is the time in the bot, used only for the bot EU charge when bot is the top tier. VA and AVA need no minutes: their flat EU fee applies whenever the tier is selected (confirmed by Chad). The UI takes an override for the overage rate.
 
 ## Scenario input format (engine)
 

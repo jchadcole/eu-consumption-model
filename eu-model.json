@@ -1,7 +1,7 @@
 {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.3.0-draft",
+  "modelVersion": "0.4.0-draft",
   "asOf": "2026-11-12",
   "status": "draft - first pass for review",
   "sources": {
@@ -495,7 +495,7 @@
     "description": "Non-EU allowances that interact with self-service design. Pooled across the org each month (per billable user x per-user allowance), based on the greater of commit or actual users. No carry-over. Overage billed in currency, not EUs.",
     "ivrMinutes": {
       "name": "Basic routing / IVR minutes",
-      "measuredAs": "IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions (confirmed by Chad 2026-11-12). In-queue flows are excluded.",
+      "measuredAs": "IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions. Modeled per path as one input, average total IVR minutes per call. In-queue flows are excluded.",
       "perUserPerMonth": {
         "named": {
           "CX1": 1750,

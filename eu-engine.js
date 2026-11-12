@@ -144,17 +144,16 @@
   /**
    * IVR minutes are not EUs (rule R6). They draw down a pooled fair-use allowance
    * (per billable user x license), and minutes past it are billed per minute in currency.
-   * Per voice path: ivrMinutes + botMinutes (bot time toggled by scenario.ivrCountsBotMinutes). VA/AVA time never counts.
+   * All self-service time on a voice call counts: per path ivrMinutes + botMinutes + agentMinutes (VA/AVA time).
    */
   function ivrFairUse(model, scenario, currency) {
     const fu = model.fairUse && model.fairUse.ivrMinutes;
     const v = scenario.selfService && scenario.selfService.voice;
     if (!fu) return null;
-    const countBot = scenario.ivrCountsBotMinutes != null ? !!scenario.ivrCountsBotMinutes : fu.includesBotTimeDefault !== false;
     let minutes = 0;
     if (v && v.interactions) {
       const totalShare = (v.paths || []).reduce((s, p) => s + (p.share || 0), 0) || 1;
-      (v.paths || []).forEach((p) => { minutes += v.interactions * (p.share || 0) / totalShare * ((p.ivrMinutes || 0) + (countBot ? (p.botMinutes || 0) : 0)); });
+      (v.paths || []).forEach((p) => { minutes += v.interactions * (p.share || 0) / totalShare * ((p.ivrMinutes || 0) + (p.botMinutes || 0) + (p.agentMinutes || 0)); });
     }
     minutes += scenario.extraIvrMinutes || 0;
     const perUser = ((fu.perUserPerMonth[scenario.licenseModel] || {})[scenario.license]) || 0;
@@ -162,7 +161,7 @@
     const allowance = perUser * users;
     const overageMinutes = Math.max(0, minutes - allowance);
     const rate = scenario.ivrOverageRate != null ? scenario.ivrOverageRate : (fu.overagePerMinute[currency] || 0);
-    return { minutes: round(minutes, 0), countsBotMinutes: countBot, perUser, users, allowance, overageMinutes: round(overageMinutes, 0),
+    return { minutes: round(minutes, 0), perUser, users, allowance, overageMinutes: round(overageMinutes, 0),
       usedPct: allowance ? round(minutes / allowance * 100, 1) : null, ratePerMinute: rate, overageCost: round(overageMinutes * rate, 2) };
   }
 

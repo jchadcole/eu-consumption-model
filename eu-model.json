@@ -1,7 +1,7 @@
 {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.5.0-draft",
+  "modelVersion": "0.5.1-draft",
   "asOf": "2026-11-12",
   "status": "draft - first pass for review",
   "sources": {
@@ -487,7 +487,7 @@
     },
     {
       "id": "R7",
-      "rule": "Each bot, VA or AVA interaction may consume a fractional EU; the monthly total per tier (Bot, VA, AVA; voice + digital combined) is rounded up to the next whole EU. Voice bot 15-second per-call time rounding still applies first.",
+      "rule": "Every usage element may consume fractional EUs per unit or interaction; the monthly total is rounded up to the next whole EU. For self-service this is per tier (Bot, VA, AVA; voice + digital combined); for other usage elements (e.g. predictive routing, messaging) it is per element. Voice bot 15-second per-call time rounding still applies first.",
       "source": "billing-scenarios",
       "confidence": "confirmed-by-chad"
     }

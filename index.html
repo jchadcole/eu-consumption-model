@@ -211,7 +211,7 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
 const MODEL = {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.5.0-draft",
+  "modelVersion": "0.5.1-draft",
   "asOf": "2026-11-12",
   "status": "draft - first pass for review",
   "sources": {
@@ -697,7 +697,7 @@ const MODEL = {
     },
     {
       "id": "R7",
-      "rule": "Each bot, VA or AVA interaction may consume a fractional EU; the monthly total per tier (Bot, VA, AVA; voice + digital combined) is rounded up to the next whole EU. Voice bot 15-second per-call time rounding still applies first.",
+      "rule": "Every usage element may consume fractional EUs per unit or interaction; the monthly total is rounded up to the next whole EU. For self-service this is per tier (Bot, VA, AVA; voice + digital combined); for other usage elements (e.g. predictive routing, messaging) it is per element. Voice bot 15-second per-call time rounding still applies first.",
       "source": "billing-scenarios",
       "confidence": "confirmed-by-chad"
     }
@@ -957,7 +957,9 @@ const SAMPLE = {
       let eu = qty * euPerUnit(e.rate);
       let note;
       if (id === 'ai-summary' && copilotOn && scenario.summaryCoveredByCopilot) { eu = 0; note = 'waived: Agent Copilot enabled'; }
-      lines.push({ id, name: e.name, category: 'usage', group: e.group, quantity: qty, unit: e.rate.unit, eu: round(eu, 2), note, source: e.source });
+      // Rule R7: fractional per unit, monthly total per element rounded up to a whole EU.
+      const rawEU = round(eu, 4);
+      lines.push({ id, name: e.name, category: 'usage', group: e.group, quantity: qty, unit: e.rate.unit, eu: Math.ceil(round(eu, 6)), rawEU, note, source: e.source });
     });
 
     const ss = scenario.selfService || {};
@@ -1077,7 +1079,7 @@ function renderChannels(){
     return `<div style="margin-top:14px">
       <div class="panel-head" style="margin-bottom:6px"><h2 style="font-size:15px">${ch === 'voice' ? 'Voice' : 'Digital'}</h2>
         <label class="f" style="flex-direction:row;align-items:center;gap:8px">Interactions / month <input type="number" min="0" data-ch="${ch}" data-k="interactions" value="${c.interactions}"></label></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num" title="Average total self-service time per call: IVR + bot + VA + AVA. Drives IVR fair use only; no EU charge.">Total IVR min<div class="sub-h">all self-service · fair use</div></th>':''}<th class="num"${ch==='voice'?' title="Minutes spent in the bot. Sets the bot EU charge when Bot is the highest tier."':''}>${unitHdr}${ch==='voice'?'<div class="sub-h">bot EU charge</div>':''}</th><th>Billed as</th><th class="num">EU / int.</th><th class="num">EU / month</th>${ch==='voice'?'<th class="num">Fair-use min / mo</th>':''}<th></th></tr></thead>
+      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num" title="Average total self-service time per call: IVR + bot + VA + AVA. Drives IVR fair use only; no EU charge.">Total IVR min<div class="sub-h">all self-service · fair use</div></th>':''}<th class="num"${ch==='voice'?' title="Minutes spent in the bot. Sets the bot EU charge when Bot is the highest tier."':''}>${unitHdr}${ch==='voice'?'<div class="sub-h">bot EU charge</div>':''}</th><th>Billed as</th><th class="num">EU / int.</th><th class="num" title="Fractional EUs for this path. The monthly total for each tier is rounded up once, in the tier totals below.">EU / month<div class="sub-h">before tier round-up</div></th>${ch==='voice'?'<th class="num">Fair-use min / mo</th>':''}<th></th></tr></thead>
       <tbody>${c.paths.map((p,i) => `<tr data-ch="${ch}" data-i="${i}">
         <td class="pathname"><input aria-label="Path name" data-k="name" value="${(p.name||'').replace(/"/g,'&quot;')}"></td>
         <td class="num"><input type="number" min="0" max="100" data-k="share" value="${p.share}" style="width:64px"></td>
@@ -1134,7 +1136,7 @@ function refresh(rebuild = true){
   try { localStorage.setItem('eu-scenario', JSON.stringify(S)); } catch(e){}
 
   // per-row outputs
-  R.lines.forEach(l => { const td = document.querySelector(`[data-out="${l.id}"]`); if (td) td.textContent = fmtEU(l.eu) + (l.note ? ' *' : ''); });
+  R.lines.forEach(l => { const td = document.querySelector(`[data-out="${l.id}"]`); if (td) { td.textContent = fmt(l.eu) + (l.id === 'ai-summary' && l.note ? ' *' : ''); td.title = l.rawEU != null && l.rawEU !== l.eu ? `${fmt(l.rawEU, 2)} EU, rounded up to ${fmt(l.eu)}` : ''; } });
   document.querySelectorAll('[data-out]').forEach(td => { if (!R.lines.find(l => l.id === td.dataset.out)) td.textContent = '0'; });
   ['voice','digital'].forEach(ch => {
     const res = R.selfService[ch];

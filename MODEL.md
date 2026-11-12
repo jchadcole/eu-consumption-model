@@ -128,7 +128,7 @@ Source: [Genesys Cloud fair use policy](https://help.genesys.cloud/articles/gene
 }
 ```
 
-Worked sample (`examples/sample-scenario.json`): 22,782 EU gross, 250 EU free, 22,532 EU net ≈ $22,532 at list price. Self-service is 65% of it, and the 10% of voice and digital paths that reach an AVA account for 6,600 EU on their own.
+Worked sample (`examples/sample-scenario.json`): self-service only, with all Fixed and Other usage elements at 0. It comes to 14,792 EU gross (Bot 1,942, VA 6,250, AVA 6,600), 250 EU free, 14,542 EU net ≈ $14,542 at list price. The 10% of voice and digital paths that reach an AVA account for 6,600 EU on their own.
 
 ## Open questions for Chad
 

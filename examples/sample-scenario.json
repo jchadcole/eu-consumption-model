@@ -4,17 +4,8 @@
   "license": "CX3",
   "agents": 200,
   "currency": "USD",
-  "fixed": {
-    "agent-copilot-named": 120,
-    "sta-named": 40
-  },
-  "usage": {
-    "ai-scoring": 4000,
-    "ai-translate": 300,
-    "predictive-routing": 25000,
-    "msg-whatsapp": 60000,
-    "gc-copilot": 400
-  },
+  "fixed": {},
+  "usage": {},
   "selfService": {
     "voice": {
       "interactions": 40000,

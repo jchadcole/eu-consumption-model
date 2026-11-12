@@ -123,7 +123,8 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
         <div class="fields">
           <label class="f">License model<select id="licenseModel"><option value="named">Named</option><option value="concurrent">Concurrent</option></select></label>
           <label class="f">License<select id="license"><option>CX1</option><option>CX2</option><option selected>CX3</option><option>CX4</option></select></label>
-          <label class="f">Agents<input id="agents" type="number" min="0" step="1"></label>
+          <label class="f">Agents (billable users)<input id="agents" type="number" min="0" step="1"></label>
+          <label class="f" title="IVR fair use is pooled on billable users, the greater of your commit or actual. Leave blank to use Agents.">Fair-use users (override)<input id="ivrUsers" type="number" min="0" step="1" placeholder="= agents"></label>
           <label class="f">Currency<select id="currency"></select></label>
           <label class="f">Price per EU (override)<input id="price" type="number" min="0" step="0.01" placeholder="list price"></label>
           <label class="f">IVR overage per minute (override)<input id="ivrRate" type="number" min="0" step="0.001" placeholder="list rate"></label>
@@ -1039,11 +1040,12 @@ $('#ladder').innerHTML = TIERS.map(t => {
 
 function bindOrg(){
   $('#licenseModel').value = S.licenseModel; $('#license').value = S.license; $('#agents').value = S.agents;
-  $('#currency').value = S.currency || 'USD'; $('#price').value = S.pricePerEU ?? ''; $('#ivrRate').value = S.ivrOverageRate ?? ''; $('#summaryWaive').checked = !!S.summaryCoveredByCopilot;
+  $('#currency').value = S.currency || 'USD'; $('#price').value = S.pricePerEU ?? ''; $('#ivrRate').value = S.ivrOverageRate ?? ''; $('#ivrUsers').value = S.ivrBillableUsers ?? ''; $('#summaryWaive').checked = !!S.summaryCoveredByCopilot;
 }
 ['licenseModel','license','currency'].forEach(id => $('#'+id).addEventListener('change', e => { S[id] = e.target.value; refresh(); }));
 $('#agents').addEventListener('input', e => { S.agents = +e.target.value || 0; refresh(); });
 $('#price').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.pricePerEU; else S.pricePerEU = +v; refresh(); });
+$('#ivrUsers').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.ivrBillableUsers; else S.ivrBillableUsers = +v; refresh(false); });
 $('#ivrRate').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.ivrOverageRate; else S.ivrOverageRate = +v; refresh(); });
 $('#summaryWaive').addEventListener('change', e => { S.summaryCoveredByCopilot = e.target.checked; refresh(); });
 
@@ -1109,6 +1111,7 @@ function refresh(rebuild = true){
   Object.keys(S.fixed||{}).forEach(k => { const e = els[k]; if (e && e.licenseModel && e.licenseModel !== S.licenseModel) delete S.fixed[k]; });
   if (rebuild) { renderChannels(); renderFixed(); renderUsage(); }
   const R = E.calculate(M, S);
+  if (typeof renderRates === 'function') renderRates();
   try { localStorage.setItem('eu-scenario', JSON.stringify(S)); } catch(e){}
 
   // per-row outputs
@@ -1152,7 +1155,7 @@ function refresh(rebuild = true){
     const over = I.overageMinutes > 0;
     $('#ivrBar').innerHTML = `<i style="width:${pct}%;background:${over ? 'var(--warn)' : 'var(--t-ivr)'}"></i>`;
     $('#ivrKv').innerHTML = `<dt>IVR minutes this month</dt><dd>${fmt(I.minutes)}</dd>
-      <dt>Pool (${fmt(I.users)} × ${fmt(I.perUser)})</dt><dd>${fmt(I.allowance)}</dd>
+      <dt>Pool (${fmt(I.users)} ${S.licenseModel} ${S.license} users × ${fmt(I.perUser)})</dt><dd>${fmt(I.allowance)}</dd>
       <dt>Pool used</dt><dd class="${over ? 'bad' : 'ok'}">${I.usedPct == null ? 'n/a' : fmt(I.usedPct,1) + '%'}</dd>
       <dt>Overage minutes</dt><dd>${fmt(I.overageMinutes)}</dd>
       <dt class="sum">Overage cost</dt><dd class="sum">${fmt(I.overageCost,2)} ${T.currency}</dd>`;
@@ -1183,12 +1186,14 @@ function refresh(rebuild = true){
   $('#jsonBox').value = JSON.stringify(S, null, 2);
 }
 
-// Rate card
+// Rate card (re-rendered on refresh so the fair-use row follows the org's license)
+function renderRates(){
 $('#rateTbl tbody').innerHTML = M.elements.map(e => `<tr><td>${e.name}</td><td><span class="cat ${e.category}">${e.category === 'fixed' ? 'Fixed' : 'Usage'}</span></td><td class="small">${e.group}</td>
   <td>${rateText(e.rate)}${e.rounding ? `<div class="small">${e.rounding}</div>` : ''}</td><td class="num">${E.euPerUnit(e.rate).toFixed(4)}</td>
   <td class="small">${[e.notes, e.waivedWhen ? 'Waived when ' + e.waivedWhen : ''].filter(Boolean).join(' ')}</td><td>${srcLink(e.source)}</td></tr>`).join('')
-  + (M.fairUse ? `<tr><td>${M.fairUse.ivrMinutes.name}</td><td><span class="cat usage">Fair use</span></td><td class="small">self-service</td><td>Pooled per user: ${Object.entries(M.fairUse.ivrMinutes.perUserPerMonth[S.licenseModel]||{}).map(([k,v])=>k+' '+fmt(v)).join(', ')} min / user / month (${S.licenseModel}). Then ${M.fairUse.ivrMinutes.overagePerMinute.USD} USD per minute.</td><td class="num">not EU</td><td class="small">${M.fairUse.ivrMinutes.measuredAs}</td><td>${srcLink('fair-use')}</td></tr>` : '')
+  + (M.fairUse ? `<tr><td>${M.fairUse.ivrMinutes.name}</td><td><span class="cat usage">Fair use</span></td><td class="small">self-service</td><td>Pooled min / user / month:${['named','concurrent'].map(lm => `<div class="small"${lm === S.licenseModel ? ' style="color:var(--ink);font-weight:600"' : ''}>${lm === 'named' ? 'Named' : 'Concurrent'}: ${Object.entries(M.fairUse.ivrMinutes.perUserPerMonth[lm]||{}).map(([k,v]) => (lm === S.licenseModel && k === S.license ? `<u>${k} ${fmt(v)}</u>` : `${k} ${fmt(v)}`)).join(' · ')}</div>`).join('')}<div class="small">Your org: ${S.licenseModel} ${S.license}. Then ${M.fairUse.ivrMinutes.overagePerMinute.USD} USD per minute.</div></td><td class="num">not EU</td><td class="small">${M.fairUse.ivrMinutes.measuredAs}</td><td>${srcLink('fair-use')}</td></tr>` : '')
   + M.allocations.map(a => `<tr><td>${a.name}</td><td><span class="cat fixed">Credit</span></td><td class="small">allocation</td><td>−${a.eu} EU per ${a.per.replace('-',' ')}</td><td class="num">−${a.eu}</td><td class="small">Expires monthly</td><td>${srcLink(a.source)}</td></tr>`).join('');
+}
 
 // Rules
 $('#rulesPanel').innerHTML = `<h2>How billing works</h2>

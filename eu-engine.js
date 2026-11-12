@@ -144,14 +144,15 @@
   /**
    * IVR minutes are not EUs (rule R6). They draw down a pooled fair-use allowance
    * (per billable user x license), and minutes past it are billed per minute in currency.
-   * All self-service time on a voice call counts: per path ivrMinutes + botMinutes + agentMinutes (VA/AVA time).
+   * Per voice path, ivrMinutes is the average total self-service time per call (IVR + bot + VA + AVA).
    */
-  /** Fair-use minutes for one call on a path; minutes only count for tiers the path touches. */
+  /**
+   * Fair-use minutes for one call on a path. `ivrMinutes` is the average TOTAL self-service
+   * time per call (IVR + bot + VA + AVA); it is the only input to IVR fair use.
+   * `botMinutes` is separate and only sets the bot EU charge.
+   */
   function fairUseMinutesPerCall(p) {
-    const t = p.tiers || [];
-    return (t.includes('ivr') ? p.ivrMinutes || 0 : 0)
-      + (t.includes('bot') ? p.botMinutes || 0 : 0)
-      + (t.includes('va') || t.includes('ava') ? p.agentMinutes || 0 : 0);
+    return (p.tiers || []).length ? p.ivrMinutes || 0 : 0;
   }
 
   function ivrFairUse(model, scenario, currency) {

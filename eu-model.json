@@ -1,7 +1,7 @@
 {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.4.0-draft",
+  "modelVersion": "0.5.0-draft",
   "asOf": "2026-11-12",
   "status": "draft - first pass for review",
   "sources": {
@@ -483,6 +483,12 @@
       "id": "R6",
       "rule": "IVR minutes are not EUs. All self-service time on a voice call (IVR + bot + VA + AVA) accrues against the org's pooled fair-use IVR minutes; minutes beyond the pool are billed per minute in currency, independent of the EU tier.",
       "source": "fair-use",
+      "confidence": "confirmed-by-chad"
+    },
+    {
+      "id": "R7",
+      "rule": "Each bot, VA or AVA interaction may consume a fractional EU; the monthly total per tier (Bot, VA, AVA; voice + digital combined) is rounded up to the next whole EU. Voice bot 15-second per-call time rounding still applies first.",
+      "source": "billing-scenarios",
       "confidence": "confirmed-by-chad"
     }
   ],

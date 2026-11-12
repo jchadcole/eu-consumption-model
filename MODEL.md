@@ -94,6 +94,7 @@ Because only the top tier counts, the cost of a path depends only on whether it 
 - **R3 (confirmed by Chad).** Channel meters (messaging, social) are separate from the self-service tier and add on top. A WhatsApp conversation handled by a VA costs 0.5 EU plus 1 EU per 400 messages.
 - **R4.** Fixed elements are billed per user per month regardless of usage.
 - **R5.** Allocations net against total monthly EUs; unused units expire.
+- **R7 (confirmed by Chad).** Each bot, VA or AVA interaction can consume a fraction of an EU, with no rounding per interaction. The monthly total for each tier (Bot, VA, AVA; voice and digital combined) is rounded up to the next whole EU. The voice bot's 15-second rounding is about call *time* and still applies per call before EUs are worked out; the whole-EU rounding happens once, on the monthly tier total.
 - **R6 (confirmed by Chad).** IVR minutes are not EUs. All self-service time on the call (IVR + bot + VA + AVA) draws down the org's pooled fair-use IVR minutes, and minutes past the pool are billed per minute in currency. This applies on top of whatever EU tier the interaction is billed at.
 
 ## IVR fair-use minutes

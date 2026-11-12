@@ -146,6 +146,14 @@
    * (per billable user x license), and minutes past it are billed per minute in currency.
    * All self-service time on a voice call counts: per path ivrMinutes + botMinutes + agentMinutes (VA/AVA time).
    */
+  /** Fair-use minutes for one call on a path; minutes only count for tiers the path touches. */
+  function fairUseMinutesPerCall(p) {
+    const t = p.tiers || [];
+    return (t.includes('ivr') ? p.ivrMinutes || 0 : 0)
+      + (t.includes('bot') ? p.botMinutes || 0 : 0)
+      + (t.includes('va') || t.includes('ava') ? p.agentMinutes || 0 : 0);
+  }
+
   function ivrFairUse(model, scenario, currency) {
     const fu = model.fairUse && model.fairUse.ivrMinutes;
     const v = scenario.selfService && scenario.selfService.voice;
@@ -153,7 +161,7 @@
     let minutes = 0;
     if (v && v.interactions) {
       const totalShare = (v.paths || []).reduce((s, p) => s + (p.share || 0), 0) || 1;
-      (v.paths || []).forEach((p) => { minutes += v.interactions * (p.share || 0) / totalShare * ((p.ivrMinutes || 0) + (p.botMinutes || 0) + (p.agentMinutes || 0)); });
+      (v.paths || []).forEach((p) => { minutes += v.interactions * (p.share || 0) / totalShare * fairUseMinutesPerCall(p); });
     }
     minutes += scenario.extraIvrMinutes || 0;
     const perUser = ((fu.perUserPerMonth[scenario.licenseModel] || {})[scenario.license]) || 0;
@@ -165,5 +173,5 @@
       usedPct: allowance ? round(minutes / allowance * 100, 1) : null, ratePerMinute: rate, overageCost: round(overageMinutes * rate, 2) };
   }
 
-  return { calculate, interactionEU, highestTier, selfServiceEU, ivrFairUse, euPerUnit };
+  return { calculate, interactionEU, highestTier, selfServiceEU, ivrFairUse, fairUseMinutesPerCall, euPerUnit };
 });

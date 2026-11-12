@@ -113,7 +113,9 @@
       let eu = qty * euPerUnit(e.rate);
       let note;
       if (id === 'ai-summary' && copilotOn && scenario.summaryCoveredByCopilot) { eu = 0; note = 'waived: Agent Copilot enabled'; }
-      lines.push({ id, name: e.name, category: 'usage', group: e.group, quantity: qty, unit: e.rate.unit, eu: round(eu, 2), note, source: e.source });
+      // Rule R7: fractional per unit, monthly total per element rounded up to a whole EU.
+      const rawEU = round(eu, 4);
+      lines.push({ id, name: e.name, category: 'usage', group: e.group, quantity: qty, unit: e.rate.unit, eu: Math.ceil(round(eu, 6)), rawEU, note, source: e.source });
     });
 
     const ss = scenario.selfService || {};

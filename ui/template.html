@@ -308,7 +308,7 @@ function refresh(rebuild = true){
   try { localStorage.setItem('eu-scenario', JSON.stringify(S)); } catch(e){}
 
   // per-row outputs
-  R.lines.forEach(l => { const td = document.querySelector(`[data-out="${l.id}"]`); if (td) td.textContent = fmtEU(l.eu) + (l.note ? ' *' : ''); });
+  R.lines.forEach(l => { const td = document.querySelector(`[data-out="${l.id}"]`); if (td) { td.textContent = fmt(l.eu) + (l.id === 'ai-summary' && l.note ? ' *' : ''); td.title = l.rawEU != null && l.rawEU !== l.eu ? `${fmt(l.rawEU, 2)} EU, rounded up to ${fmt(l.eu)}` : ''; } });
   document.querySelectorAll('[data-out]').forEach(td => { if (!R.lines.find(l => l.id === td.dataset.out)) td.textContent = '0'; });
   ['voice','digital'].forEach(ch => {
     const res = R.selfService[ch];

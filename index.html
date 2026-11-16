@@ -120,7 +120,7 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
   <header class="top">
     <div>
       <h1>EU Consumption Modeler</h1>
-      <p class="sub">Genesys Cloud Experience Units: set your volumes, seats and self-service paths, and see what a month consumes. Draft model <span id="ver"></span>, rates as of <span id="asof"></span>.</p>
+      <p class="sub">Genesys Cloud Experience Units: set your volumes, seats and self-service paths, and see what a month consumes. Model v<span id="ver"></span>, rates as of <span id="asof"></span>.</p>
     </div>
     <div class="top-actions">
     <div class="theme" role="group" aria-label="Color theme">
@@ -232,9 +232,9 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
 const MODEL = {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.6.0-draft",
+  "modelVersion": "1.0.0",
   "asOf": "2026-11-16",
-  "status": "draft - first pass for review",
+  "status": "1.0 - all rules confirmed by Chad (2026-11-16)",
   "sources": {
     "eu-model": {
       "title": "Genesys Cloud Experience Units model (metering details)",
@@ -864,7 +864,7 @@ const SAMPLE = {
 </script>
 <script>
 /*
- * Genesys Cloud Experience Unit (EU) calculation engine - v0.1.0-draft
+ * Genesys Cloud Experience Unit (EU) calculation engine - v1.0.0
  * Pure, dependency-free. Works in the browser (window.EUEngine) and Node (require).
  *
  *   const { calculate } = require('./eu-engine.js');

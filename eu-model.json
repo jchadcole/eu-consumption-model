@@ -1,8 +1,8 @@
 {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.5.1-draft",
-  "asOf": "2026-11-12",
+  "modelVersion": "0.6.0-draft",
+  "asOf": "2026-11-16",
   "status": "draft - first pass for review",
   "sources": {
     "eu-model": {
@@ -134,7 +134,19 @@
         "digital": {
           "eu": 1,
           "per": 51,
-          "unit": "session"
+          "unit": "session",
+          "sessionDefinition": {
+            "session": "The bot conversation container between the customer and the bot (Digital Bot Flow or Digital Bot Connector). Persists up to 72 hours or the configured session timeout, keeping context, slots and turn history across inactivity.",
+            "interaction": "The overall customer conversation (web messaging or SMS conversation ID) routed through inbound message flows, queues and agents. One interaction can hold more than one bot session.",
+            "reentry": "Re-entering a bot flow while the conversation is still open and within the session window continues the same session; it is not a new session.",
+            "newSessionWhen": [
+              "Session timeout or follow-up response timeout is reached",
+              "The bot flow exits with a disconnect or transfer that ends the session",
+              "A new inbound interaction starts after the previous conversation closed"
+            ],
+            "source": "confirmed-by-chad",
+            "confirmed": "2026-11-16"
+          }
         },
         "basis": "duration-or-session",
         "source": "eu-model",
@@ -493,8 +505,6 @@
     }
   ],
   "openQuestions": [
-    "IVR overage rate ($0.01/min) came from a part of the fair-use page I could only read as a summary; please confirm.",
-    "Digital bot 'session' vs 'interaction' definition (revised 2026-06-01) - does a digital session reset on re-entry?",
     "Exact prepaid EU discount and any volume tiers are unpublished."
   ],
   "fairUse": {
@@ -530,7 +540,7 @@
       },
       "invoiceCode": "PC-170-NV-PCIVRPERMIN",
       "source": "fair-use",
-      "confidence": "allowances published; overage rate and measurement rule read from a part of the page that only came through as a summary - verify"
+      "confidence": "allowances published; overage of USD 0.01 per minute confirmed by Chad 2026-11-16 (other currencies from the fair-use page summary)"
     }
   }
 }

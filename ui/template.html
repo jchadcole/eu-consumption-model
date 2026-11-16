@@ -427,7 +427,8 @@ $('#rulesPanel').innerHTML = `<h2>How billing works</h2>
   <h2 style="margin-top:16px">What ends an interaction</h2>
   <p>${M.selfServiceTiers.interactionBoundary.description}</p>
   <ul>${M.selfServiceTiers.interactionBoundary.endEvents.map(x => `<li>${x}</li>`).join('')}</ul>`;
-$('#openQ').innerHTML = `<h2>Open questions for review</h2><div class="warnbox"><ul>${M.openQuestions.map(q => `<li>${q}</li>`).join('')}</ul></div>`;
+$('#openQ').innerHTML = M.openQuestions.length ? `<h2>Open questions for review</h2><div class="warnbox"><ul>${M.openQuestions.map(q => `<li>${q}</li>`).join('')}</ul></div>` : '';
+$('#openQ').hidden = !M.openQuestions.length;
 
 // Tabs
 document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => {

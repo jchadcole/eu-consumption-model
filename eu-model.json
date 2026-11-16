@@ -504,9 +504,7 @@
       "confidence": "confirmed-by-chad"
     }
   ],
-  "openQuestions": [
-    "Exact prepaid EU discount and any volume tiers are unpublished."
-  ],
+  "openQuestions": [],
   "fairUse": {
     "description": "Non-EU allowances that interact with self-service design. Pooled across the org each month (per billable user x per-user allowance), based on the greater of commit or actual users. No carry-over. Overage billed in currency, not EUs.",
     "ivrMinutes": {

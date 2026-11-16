@@ -2,7 +2,7 @@
 
 A reusable model of how Genesys Cloud consumes Experience Units (EUs, formerly AI Experience tokens), with a calculator and an interactive modeler.
 
-**Live modeler:** https://jchadcole.github.io/eu-consumption-model/ (rebuilt by GitHub Pages from `main` after each merge; the header shows the model version it is running)
+**Live modeler:** https://jchadcole.github.io/eu-consumption-model/ (rebuilt by GitHub Pages from `main` after each merge; the header shows the model version it is running, e.g. "Model v1.0.0")
 
 ## What's here
 

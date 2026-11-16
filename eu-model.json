@@ -1,9 +1,9 @@
 {
   "$schema": "./eu-model.schema.json",
   "modelId": "genesys-cloud-eu",
-  "modelVersion": "0.6.0-draft",
+  "modelVersion": "1.0.0",
   "asOf": "2026-11-16",
-  "status": "draft - first pass for review",
+  "status": "1.0 - all rules confirmed by Chad (2026-11-16)",
   "sources": {
     "eu-model": {
       "title": "Genesys Cloud Experience Units model (metering details)",

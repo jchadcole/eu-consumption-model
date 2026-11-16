@@ -1,6 +1,6 @@
-# Genesys Cloud Experience Unit (EU) Consumption Model — v0.6.0 draft
+# Genesys Cloud Experience Unit (EU) Consumption Model — v1.0.0
 
-First-pass model for review. Rates are as of 2026-11-16 and come from the pages cited inline. "Tokens" were renamed "Experience Units" on 2026-11-06; the value did not change.
+Version 1.0: every billing rule has been confirmed by Chad. Rates are as of 2026-11-16 and come from the pages cited inline. "Tokens" were renamed "Experience Units" on 2026-11-06; the value did not change.
 
 ## What's in this package (the "plugin")
 

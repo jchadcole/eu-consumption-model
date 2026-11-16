@@ -1,5 +1,5 @@
 /*
- * Genesys Cloud Experience Unit (EU) calculation engine - v0.1.0-draft
+ * Genesys Cloud Experience Unit (EU) calculation engine - v1.0.0
  * Pure, dependency-free. Works in the browser (window.EUEngine) and Node (require).
  *
  *   const { calculate } = require('./eu-engine.js');

@@ -1,6 +1,6 @@
-# Genesys Cloud Experience Unit (EU) Consumption Model — v0.3.0 draft
+# Genesys Cloud Experience Unit (EU) Consumption Model — v0.6.0 draft
 
-First-pass model for review. Rates are as of 2026-11-12 and come from the pages cited inline. "Tokens" were renamed "Experience Units" on 2026-11-06; the value did not change.
+First-pass model for review. Rates are as of 2026-11-16 and come from the pages cited inline. "Tokens" were renamed "Experience Units" on 2026-11-06; the value did not change.
 
 ## What's in this package (the "plugin")
 
@@ -59,7 +59,7 @@ Another project (e.g. bot performance) only needs `eu-model.json` + `eu-engine.j
 
 - Free per org per month: 250 EU (named) or 350 EU (concurrent). Source: free-allocation.
 - CX 4 adds 30 EU per named agent or 39 EU per concurrent agent per month. Source: pricing-hub.
-- List price $1.00 USD per EU (CAD 1.10, AUD 1.30, NZD 1.40, GBP 0.70, EUR 0.80, BRL 4.0, JPY 120, ZAR 14.2). Prepaid units have an unpublished discount, so the UI takes an override. Source: pricing-hub.
+- List price $1.00 USD per EU (CAD 1.10, AUD 1.30, NZD 1.40, GBP 0.70, EUR 0.80, BRL 4.0, JPY 120, ZAR 14.2). Prepaid units have an unpublished discount, so the UI takes a price override and an EU cost discount (%). Source: pricing-hub.
 - Units renew monthly and do not carry over. Source: eu-model.
 
 ## Highest-tier billing for self-service
@@ -111,14 +111,25 @@ Source: [Genesys Cloud fair use policy](https://help.genesys.cloud/articles/gene
 
 - Pooled across the org: billable users × per-user allowance, based on the greater of commit or actual users. No carry-over. The engine uses `licenseModel` + `license` to pick the per-user allowance and `agents` as the user count, or `ivrBillableUsers` when set (the UI's "Fair-use users" override). One license type per org is assumed; mixed CX tiers aren't modeled yet.
 - IVR minutes accrue for all self-service time on a voice call: IVR, bot, VA and AVA sessions (confirmed by Chad). In-queue flows are excluded; ASR, TTS, DTMF and transfers inside the flow count.
-- Overage: USD 0.01 per minute (CAD 0.011, AUD 0.013, NZD 0.014, GBP 0.007, EUR 0.008, BRL 0.04, JPY 1.00, ZAR 0.14), invoice code PC-170-NV-PCIVRPERMIN. This rate and the measurement rule came from a part of the page I could only read as a summary, so they need a check.
-- In the engine, each voice path carries two inputs. `ivrMinutes` is the average **total** IVR minutes per call: all self-service time (IVR + bot + VA + AVA), and the only input to fair use. `botMinutes` is the time in the bot, used only for the bot EU charge when bot is the top tier. VA and AVA need no minutes: their flat EU fee applies whenever the tier is selected (confirmed by Chad). The UI takes an override for the overage rate.
+- Overage: USD 0.01 per minute (confirmed by Chad, 2026-11-16), invoice code PC-170-NV-PCIVRPERMIN. Other currencies come from the fair-use page summary: CAD 0.011, AUD 0.013, NZD 0.014, GBP 0.007, EUR 0.008, BRL 0.04, JPY 1.00, ZAR 0.14. The UI has an "IVR charge per min after fair use" input that starts at this rate and can be changed (scenario field `ivrOverageRate`).
+- In the engine, each voice path carries two inputs. `ivrMinutes` is the average **total** IVR minutes per call: all self-service time (IVR + bot + VA + AVA), and the only input to fair use. `botMinutes` is the time in the bot, used only for the bot EU charge when bot is the top tier. VA and AVA need no minutes: their flat EU fee applies whenever the tier is selected (confirmed by Chad). 
+
+## Digital bot sessions
+
+Digital bots are billed 1 EU per 51 sessions. Confirmed by Chad, 2026-11-16:
+
+- **Session:** the bot conversation container between the customer and the bot (Digital Bot Flow or Digital Bot Connector). It lasts up to 72 hours or the configured session timeout, and keeps context, slot values and turn history through periods of inactivity.
+- **Interaction:** the overall customer conversation (web messaging or SMS conversation ID) that routes through inbound message flows, queues and agents. One interaction can hold more than one bot session.
+- **Re-entry does not reset the session.** If the customer leaves the bot flow, goes to an in-queue flow, or is routed back into the bot while the conversation is still open and inside the session window, it is the same session.
+- **A new session starts only when:** the session timeout or follow-up response timeout is reached; the bot flow exits with a disconnect or transfer that ends the session; or a new inbound interaction starts after the previous conversation was closed.
+
+In the engine and UI, each digital path has "Bot sessions per interaction" (default 1). Raise it above 1 only for paths where one of the reset triggers above happens inside the same interaction.
 
 ## Scenario input format (engine)
 
 ```json
 {
-  "licenseModel": "named", "license": "CX3", "agents": 200, "currency": "USD", "pricePerEU": 0.85, "ivrOverageRate": 0.01,
+  "licenseModel": "named", "license": "CX3", "agents": 200, "currency": "USD", "pricePerEU": 1.00, "euDiscountPct": 15, "ivrOverageRate": 0.01,
   "fixed":  { "agent-copilot-named": 120 },
   "usage":  { "ai-scoring": 4000, "msg-whatsapp": 60000 },
   "selfService": {
@@ -133,7 +144,6 @@ Worked sample (`examples/sample-scenario.json`): self-service only, with all Fix
 ## Open questions for Chad
 
 Answered 2026-11-12: tiers are billed by rank (R1), messaging EUs add on top (R3), IVR is billed per minute after fair use (R6), and IVR fair-use minutes accrue through IVR, bot, VA and AVA time.
+Answered 2026-11-16: the IVR overage is USD 0.01 per minute, and digital bot sessions persist across re-entry (see "Digital bot sessions").
 
-1. Please confirm the IVR overage rate of USD 0.01 per minute.
-2. Digital bot session definition after the 2026-06-01 revision: does re-entry start a new session?
-3. Prepaid EU discount and volume tiers are not published; the UI takes a negotiated price.
+1. Prepaid EU discount and volume tiers are not published. The UI has a "Price per EU (override)" input and an "EU cost discount (%)" input (scenario field `euDiscountPct`) for a negotiated discount. The discount applies to EU cost only, not to IVR overage.

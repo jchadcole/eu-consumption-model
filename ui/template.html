@@ -42,7 +42,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 section.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
 .panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .hint{color:var(--muted);font-size:12.5px}
-.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px;align-items:end}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
 input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0}
 input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
@@ -140,7 +140,8 @@ textarea{width:100%;min-height:160px;font-family:var(--f-mono);font-size:12px}
           <label class="f" title="IVR fair use is pooled on billable users, the greater of your commit or actual. Leave blank to use Agents.">Fair-use users (override)<input id="ivrUsers" type="number" min="0" step="1" placeholder="= agents"></label>
           <label class="f">Currency<select id="currency"></select></label>
           <label class="f">Price per EU (override)<input id="price" type="number" min="0" step="0.01" placeholder="list price"></label>
-          <label class="f">IVR overage per minute (override)<input id="ivrRate" type="number" min="0" step="0.001" placeholder="list rate"></label>
+          <label class="f" title="Percent off the per-EU price, for example a negotiated prepaid discount. Does not apply to IVR overage.">EU cost discount (%)<input id="discount" type="number" min="0" max="100" step="0.5"></label>
+          <label class="f" title="Charged per IVR minute once the pooled fair-use minutes run out. Not EUs."><span>IVR rate / min after fair use (<span id="ivrCur">USD</span>)</span><input id="ivrRate" type="number" min="0" step="0.001"></label>
         </div>
       </section>
 
@@ -253,13 +254,17 @@ $('#ladder').innerHTML = TIERS.map(t => {
 
 function bindOrg(){
   $('#licenseModel').value = S.licenseModel; $('#license').value = S.license; $('#agents').value = S.agents;
-  $('#currency').value = S.currency || 'USD'; $('#price').value = S.pricePerEU ?? ''; $('#ivrRate').value = S.ivrOverageRate ?? ''; $('#ivrUsers').value = S.ivrBillableUsers ?? ''; $('#summaryWaive').checked = !!S.summaryCoveredByCopilot;
+  $('#currency').value = S.currency || 'USD'; $('#price').value = S.pricePerEU ?? ''; $('#discount').value = S.euDiscountPct ?? 0; showIvrRate(); $('#ivrUsers').value = S.ivrBillableUsers ?? ''; $('#summaryWaive').checked = !!S.summaryCoveredByCopilot;
 }
-['licenseModel','license','currency'].forEach(id => $('#'+id).addEventListener('change', e => { S[id] = e.target.value; refresh(); }));
+const defaultIvrRate = () => (M.fairUse.ivrMinutes.overagePerMinute[S.currency || 'USD'] ?? 0);
+function showIvrRate(){ $('#ivrRate').value = S.ivrOverageRate ?? defaultIvrRate(); $('#ivrCur').textContent = S.currency || 'USD'; }
+['licenseModel','license','currency'].forEach(id => $('#'+id).addEventListener('change', e => { S[id] = e.target.value; if (id === 'currency') showIvrRate(); refresh(); }));
 $('#agents').addEventListener('input', e => { S.agents = +e.target.value || 0; refresh(); });
+$('#discount').addEventListener('input', e => { const v = e.target.value; if (v === '' || +v === 0) delete S.euDiscountPct; else S.euDiscountPct = Math.min(100, Math.max(0, +v)); refresh(); });
 $('#price').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.pricePerEU; else S.pricePerEU = +v; refresh(); });
 $('#ivrUsers').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.ivrBillableUsers; else S.ivrBillableUsers = +v; refresh(false); });
 $('#ivrRate').addEventListener('input', e => { const v = e.target.value; if (v === '') delete S.ivrOverageRate; else S.ivrOverageRate = +v; refresh(); });
+$('#ivrRate').addEventListener('change', e => { if (e.target.value === '') showIvrRate(); });
 $('#summaryWaive').addEventListener('change', e => { S.summaryCoveredByCopilot = e.target.checked; refresh(); });
 
 function renderChannels(){
@@ -271,7 +276,7 @@ function renderChannels(){
     return `<div style="margin-top:14px">
       <div class="panel-head" style="margin-bottom:6px"><h2 style="font-size:15px">${ch === 'voice' ? 'Voice' : 'Digital'}</h2>
         <label class="f" style="flex-direction:row;align-items:center;gap:8px">Interactions / month <input type="number" min="0" data-ch="${ch}" data-k="interactions" value="${c.interactions}"></label></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num" title="Average total self-service time per call: IVR + bot + VA + AVA. Drives IVR fair use only; no EU charge.">Total IVR min<div class="sub-h">all self-service · fair use</div></th>':''}<th class="num"${ch==='voice'?' title="Minutes spent in the bot. Sets the bot EU charge when Bot is the highest tier."':''}>${unitHdr}${ch==='voice'?'<div class="sub-h">bot EU charge</div>':''}</th><th>Billed as</th><th class="num">EU / int.</th><th class="num" title="Fractional EUs for this path. The monthly total for each tier is rounded up once, in the tier totals below.">EU / month<div class="sub-h">before tier round-up</div></th>${ch==='voice'?'<th class="num">Fair-use min / mo</th>':''}<th></th></tr></thead>
+      <div class="tbl-wrap"><table><thead><tr><th>Path</th><th class="num">Share %</th><th>Tiers touched</th>${ch==='voice'?'<th class="num" title="Average total self-service time per call: IVR + bot + VA + AVA. Drives IVR fair use only; no EU charge.">Total IVR min<div class="sub-h">all self-service · fair use</div></th>':''}<th class="num"${ch==='voice'?' title="Minutes spent in the bot. Sets the bot EU charge when Bot is the highest tier."':''}${ch==='digital'?' title="Bot sessions per interaction. Re-entering the bot while the conversation is still open continues the same session. A new session starts only after a session timeout, a disconnect or transfer that ends the session, or a new interaction after the old one closed."':''}>${unitHdr}<div class="sub-h">${ch==='voice'?'bot EU charge':'per interaction · re-entry = same'}</div></th><th>Billed as</th><th class="num">EU / int.</th><th class="num" title="Fractional EUs for this path. The monthly total for each tier is rounded up once, in the tier totals below.">EU / month<div class="sub-h">before tier round-up</div></th>${ch==='voice'?'<th class="num">Fair-use min / mo</th>':''}<th></th></tr></thead>
       <tbody>${c.paths.map((p,i) => `<tr data-ch="${ch}" data-i="${i}">
         <td class="pathname"><input aria-label="Path name" data-k="name" value="${(p.name||'').replace(/"/g,'&quot;')}"></td>
         <td class="num"><input type="number" min="0" max="100" data-k="share" value="${p.share}" style="width:64px"></td>
@@ -355,12 +360,12 @@ function refresh(rebuild = true){
   $('#flow').innerHTML = `<div class="fig"><b>${fmt(T.grossEU)}</b><span>EU consumed</span></div><div class="op">−</div>
     <div class="fig"><b>${fmt(allocUsed)}</b><span>free (of ${fmt(T.allocationEU)})</span></div><div class="op">=</div>
     <div class="fig net"><b>${fmt(T.netEU)}</b><span>EU billable</span></div>`;
-  $('#cost').textContent = `Billable ≈ ${fmt(T.cost, 2)} ${T.currency} at ${T.pricePerEU} per EU` + (S.pricePerEU != null ? ' (override)' : ' (list)') + (T.unusedAllocationEU ? `. ${fmt(T.unusedAllocationEU)} free EU unused this month (no carry-over).` : '');
+  $('#cost').textContent = `Billable ≈ ${fmt(T.cost, 2)} ${T.currency} at ${T.pricePerEU} per EU` + (S.pricePerEU != null ? ' (override)' : ' (list)') + (T.discountPct ? ` less ${+T.discountPct.toFixed(2)}% discount = ${+T.effectivePricePerEU.toFixed(4)} per EU` : '') + (T.unusedAllocationEU ? `. ${fmt(T.unusedAllocationEU)} free EU unused this month (no carry-over).` : '');
   $('#kv').innerHTML = `<dt>Fixed elements</dt><dd>${fmt(T.fixedEU,1)}</dd><dt>Usage elements</dt><dd>${fmt(T.usageEU,1)}</dd>
     <dt class="sum">Gross</dt><dd class="sum">${fmt(T.grossEU,1)}</dd>
     ${R.allocation.lines.map(a => `<dt>− ${a.name}</dt><dd>${fmt(a.eu)}</dd>`).join('')}
     <dt class="sum">Net billable</dt><dd class="sum">${fmt(T.netEU,1)}</dd>
-    <dt>EU cost</dt><dd>${fmt(T.cost,2)}</dd><dt>IVR overage cost</dt><dd>${fmt(T.ivrOverageCost,2)}</dd>
+    ${T.discountPct ? `<dt>EU cost before discount</dt><dd>${fmt(T.euCostBeforeDiscount,2)}</dd><dt>− Discount (${+T.discountPct.toFixed(2)}%)</dt><dd>${fmt(T.euDiscount,2)}</dd>` : ''}<dt>EU cost</dt><dd>${fmt(T.cost,2)}</dd><dt>IVR overage cost</dt><dd>${fmt(T.ivrOverageCost,2)}</dd>
     <dt class="sum">Total ${T.currency}</dt><dd class="sum">${fmt(T.totalCost,2)}</dd>
     ${T.unusedAllocationEU ? `<dt>Unused allocation (expires)</dt><dd>${fmt(T.unusedAllocationEU)}</dd>` : ''}`;
 
@@ -411,7 +416,7 @@ function renderRates(){
 $('#rateTbl tbody').innerHTML = M.elements.map(e => `<tr><td>${e.name}</td><td><span class="cat ${e.category}">${e.category === 'fixed' ? 'Fixed' : 'Usage'}</span></td><td class="small">${e.group}</td>
   <td>${rateText(e.rate)}${e.rounding ? `<div class="small">${e.rounding}</div>` : ''}</td><td class="num">${E.euPerUnit(e.rate).toFixed(4)}</td>
   <td class="small">${[e.notes, e.waivedWhen ? 'Waived when ' + e.waivedWhen : ''].filter(Boolean).join(' ')}</td><td>${srcLink(e.source)}</td></tr>`).join('')
-  + (M.fairUse ? `<tr><td>${M.fairUse.ivrMinutes.name}</td><td><span class="cat usage">Fair use</span></td><td class="small">self-service</td><td>Pooled min / user / month:${['named','concurrent'].map(lm => `<div class="small"${lm === S.licenseModel ? ' style="color:var(--ink);font-weight:600"' : ''}>${lm === 'named' ? 'Named' : 'Concurrent'}: ${Object.entries(M.fairUse.ivrMinutes.perUserPerMonth[lm]||{}).map(([k,v]) => (lm === S.licenseModel && k === S.license ? `<u>${k} ${fmt(v)}</u>` : `${k} ${fmt(v)}`)).join(' · ')}</div>`).join('')}<div class="small">Your org: ${S.licenseModel} ${S.license}. Then ${M.fairUse.ivrMinutes.overagePerMinute.USD} USD per minute.</div></td><td class="num">not EU</td><td class="small">${M.fairUse.ivrMinutes.measuredAs}</td><td>${srcLink('fair-use')}</td></tr>` : '')
+  + (M.fairUse ? `<tr><td>${M.fairUse.ivrMinutes.name}</td><td><span class="cat usage">Fair use</span></td><td class="small">self-service</td><td>Pooled min / user / month:${['named','concurrent'].map(lm => `<div class="small"${lm === S.licenseModel ? ' style="color:var(--ink);font-weight:600"' : ''}>${lm === 'named' ? 'Named' : 'Concurrent'}: ${Object.entries(M.fairUse.ivrMinutes.perUserPerMonth[lm]||{}).map(([k,v]) => (lm === S.licenseModel && k === S.license ? `<u>${k} ${fmt(v)}</u>` : `${k} ${fmt(v)}`)).join(' · ')}</div>`).join('')}<div class="small">Your org: ${S.licenseModel} ${S.license}. Then ${fmt(S.ivrOverageRate ?? defaultIvrRate(),3)} ${S.currency || 'USD'} per minute.</div></td><td class="num">not EU</td><td class="small">${M.fairUse.ivrMinutes.measuredAs}</td><td>${srcLink('fair-use')}</td></tr>` : '')
   + M.allocations.map(a => `<tr><td>${a.name}</td><td><span class="cat fixed">Credit</span></td><td class="small">allocation</td><td>−${a.eu} EU per ${a.per.replace('-',' ')}</td><td class="num">−${a.eu}</td><td class="small">Expires monthly</td><td>${srcLink(a.source)}</td></tr>`).join('');
 }
 

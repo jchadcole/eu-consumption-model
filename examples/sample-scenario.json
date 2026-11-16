@@ -4,6 +4,7 @@
   "license": "CX3",
   "agents": 200,
   "currency": "USD",
+  "ivrOverageRate": 0.01,
   "fixed": {},
   "usage": {},
   "selfService": {

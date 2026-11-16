@@ -88,7 +88,7 @@
 
   /**
    * scenario = {
-   *   licenseModel: 'named'|'concurrent', license: 'CX3', agents: 100, currency: 'USD', pricePerEU?: number,
+   *   licenseModel: 'named'|'concurrent', license: 'CX3', agents: 100, currency: 'USD', pricePerEU?: number, euDiscountPct?: number (0-100),
    *   fixed:  { '<elementId>': users },
    *   usage:  { '<elementId>': units },          // non-self-service usage elements
    *   selfService: { voice: { interactions, paths:[{name,share,tiers:[...],botMinutes}] },
@@ -140,14 +140,18 @@
     const fixedEU = round(lines.filter((l) => l.category === 'fixed').reduce((s, l) => s + l.eu, 0), 2);
 
     const ivr = ivrFairUse(model, scenario, currency);
-    const euCost = round(net * price, 2);
+    // EU cost discount (percent off the per-EU price, e.g. a negotiated prepaid discount).
+    const discountPct = Math.min(100, Math.max(0, +scenario.euDiscountPct || 0));
+    const euCostBeforeDiscount = round(net * price, 2);
+    const euDiscount = round(euCostBeforeDiscount * discountPct / 100, 2);
+    const euCost = round(euCostBeforeDiscount - euDiscount, 2);
 
     return {
       modelVersion: model.modelVersion,
       lines,
       selfService: { voice, digital, tierTotals },
       ivr,
-      totals: { fixedEU, usageEU: round(gross - fixedEU, 2), grossEU: gross, allocationEU: alloc.eu, netEU: net, unusedAllocationEU: Math.max(0, round(alloc.eu - gross, 2)), currency, pricePerEU: price,
+      totals: { fixedEU, usageEU: round(gross - fixedEU, 2), grossEU: gross, allocationEU: alloc.eu, netEU: net, unusedAllocationEU: Math.max(0, round(alloc.eu - gross, 2)), currency, pricePerEU: price, discountPct, effectivePricePerEU: round(price * (1 - discountPct / 100), 4), euCostBeforeDiscount, euDiscount,
         cost: euCost, ivrOverageCost: ivr ? ivr.overageCost : 0, totalCost: round(euCost + (ivr ? ivr.overageCost : 0), 2) },
       allocation: alloc,
     };

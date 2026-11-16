@@ -146,4 +146,4 @@ Worked sample (`examples/sample-scenario.json`): self-service only, with all Fix
 Answered 2026-11-12: tiers are billed by rank (R1), messaging EUs add on top (R3), IVR is billed per minute after fair use (R6), and IVR fair-use minutes accrue through IVR, bot, VA and AVA time.
 Answered 2026-11-16: the IVR overage is USD 0.01 per minute, and digital bot sessions persist across re-entry (see "Digital bot sessions").
 
-1. Prepaid EU discount and volume tiers are not published. The UI has a "Price per EU (override)" input and an "EU cost discount (%)" input (scenario field `euDiscountPct`) for a negotiated discount. The discount applies to EU cost only, not to IVR overage.
+No open questions remain. Prepaid discounts and volume tiers are out of scope (dismissed by Chad, 2026-11-16); the UI's "Price per EU (override)" and "EU cost discount (%)" fields (scenario field `euDiscountPct`, EU cost only) cover negotiated pricing.
